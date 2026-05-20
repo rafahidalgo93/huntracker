@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0f0f0f" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Gym Tracker" />
+  <meta name="description" content="Tu planificador de entrenamiento personal" />
+  <title>Gym Tracker</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0f0f0f; }
+    #root { min-height: 100vh; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <script type="text/babel">
+const { useState, useEffect } = React;
+
+const PROGRAM = [
+  {
+    id: 0, label: "SEMANA 1",
+    days: [
+      { name: "LEGS", day: "Lunes", exercises: [
+        { name: "Barbell squats", sets: 3, reps: "12" },
+        { name: "Leg press", sets: 2, reps: "15" },
+        { name: "Deadlift with dumbbells (pause 1s bottom)", sets: 3, reps: "8" },
+        { name: "Single leg squats (with/without support)", sets: 3, reps: "10" },
+        { name: "Jumping jacks to max height", sets: 4, reps: "10" },
+      ]},
+      { name: "CHEST · BICEPS · SHOULDERS", day: "Miércoles", exercises: [
+        { name: "Bench press (2s pause bottom)", sets: 3, reps: "10" },
+        { name: "Dips (with/without weight)", sets: 3, reps: "10" },
+        { name: "Incline dumbbell press 45°", sets: 3, reps: "8" },
+        { name: "Prayer bench press", sets: 3, reps: "15" },
+        { name: "Hammer curls", sets: 3, reps: "8" },
+        { name: "Dumbbell curls supination incline 45°", sets: 3, reps: "10" },
+        { name: "Standing arm swings", sets: 2, reps: "20" },
+      ]},
+      { name: "BACK · TRICEPS", day: "Viernes", exercises: [
+        { name: "Deadlift (sumo or conventional)", sets: 3, reps: "10" },
+        { name: "Bent-over barbell row", sets: 2, reps: "10" },
+        { name: "Wide-grip lat pulldown", sets: 3, reps: "10" },
+        { name: "Dumbbell rows on bench", sets: 3, reps: "12" },
+        { name: "Dumbbell shrugs", sets: 3, reps: "12" },
+        { name: "Triceps extensions on cable machine", sets: 3, reps: "12" },
+      ]},
+      { name: "ABS & CORE", day: "1x/semana", exercises: [
+        { name: "Leg raise on bars", sets: 3, reps: "20" },
+        { name: "Russian twist (weighted)", sets: 3, reps: "20" },
+        { name: "Hyperextension (weighted)", sets: 3, reps: "10" },
+        { name: "Scissors for abs", sets: 3, reps: "40s" },
+        { name: "Plank (max)", sets: 1, reps: "MAX" },
+      ]},
+    ]
+  },
+  {
+    id: 1, label: "SEMANA 2",
+    days: [
+      { name: "LEGS · SHOULDERS", day: "Lunes", exercises: [
+        { name: "Barbell squats", sets: 2, reps: "8" },
+        { name: "Barbell squats (pause bottom)", sets: 2, reps: "7" },
+        { name: "Leg press (wide & high stance)", sets: 4, reps: "12" },
+        { name: "Walking lunges with dumbbells", sets: 3, reps: "10" },
+        { name: "Seated dumbbell lateral raises", sets: 3, reps: "15" },
+        { name: "Standing barbell shoulder press", sets: 3, reps: "8" },
+      ]},
+      { name: "CHEST · TRICEPS", day: "Miércoles", exercises: [
+        { name: "Incline bench press 30°", sets: 3, reps: "10" },
+        { name: "Dumbbell bench press", sets: 3, reps: "10" },
+        { name: "Cable crossovers", sets: 3, reps: "12" },
+        { name: "Close-grip bench press", sets: 3, reps: "8" },
+        { name: "Seated dumbbell front raises", sets: 3, reps: "10" },
+        { name: "Max push-ups", sets: 1, reps: "MAX" },
+      ]},
+      { name: "BACK · BICEPS", day: "Viernes", exercises: [
+        { name: "Box deadlift (3-5cm height)", sets: 3, reps: "8" },
+        { name: "Deadlift", sets: 2, reps: "3" },
+        { name: "Pull-ups (or lat pulldown)", sets: 3, reps: "10" },
+        { name: "Dumbbell rows bent over", sets: 3, reps: "10" },
+        { name: "Seated dumbbell shrugs", sets: 3, reps: "10" },
+        { name: "Straight barbell curls", sets: 3, reps: "12" },
+        { name: "Reverse grip barbell curls", sets: 3, reps: "15" },
+      ]},
+    ]
+  },
+  {
+    id: 2, label: "SEMANA 3",
+    days: [
+      { name: "LEGS", day: "Lunes", exercises: [
+        { name: "Barbell squats", sets: 4, reps: "6" },
+        { name: "Front squats", sets: 2, reps: "10" },
+        { name: "Deadlift", sets: 3, reps: "10" },
+        { name: "Leg press (pause 3s bottom)", sets: 3, reps: "8" },
+        { name: "Jumping jacks to max height", sets: 3, reps: "10" },
+      ]},
+      { name: "CHEST", day: "Miércoles", exercises: [
+        { name: "Dumbbell bench press", sets: 3, reps: "8" },
+        { name: "Close-grip barbell bench press", sets: 2, reps: "10" },
+        { name: "Parallel bar dips (weighted optional)", sets: 3, reps: "8" },
+        { name: "Flyes", sets: 4, reps: "12" },
+        { name: "Plate press", sets: 2, reps: "20" },
+      ]},
+      { name: "BACK", day: "Viernes", exercises: [
+        { name: "Deadlift", sets: 3, reps: "7" },
+        { name: "Rack pulls (3-5cm above knee)", sets: 2, reps: "9" },
+        { name: "Seated cable rows", sets: 3, reps: "10" },
+        { name: "Wide-grip lat pulldowns", sets: 3, reps: "10" },
+        { name: "Straight-arm pulldowns", sets: 4, reps: "12" },
+      ]},
+      { name: "ARMS · SHOULDERS", day: "Sábado", exercises: [
+        { name: "Hammer curls", sets: 3, reps: "8" },
+        { name: "Wide-grip barbell curls", sets: 3, reps: "8" },
+        { name: "Skull crushers", sets: 3, reps: "8" },
+        { name: "Incline dumbbell triceps extensions", sets: 4, reps: "12" },
+        { name: "Seated dumbbell lateral raises", sets: 4, reps: "15" },
+      ]},
+    ]
+  },
+  {
+    id: 3, label: "SEMANA 4",
+    days: [
+      { name: "LEGS · SHOULDER", day: "Lunes", exercises: [
+        { name: "Squats (RECORD)", sets: 1, reps: "1" },
+        { name: "Squats", sets: 3, reps: "12" },
+        { name: "Leg press", sets: 3, reps: "15" },
+        { name: "Lateral raises with dumbbells", sets: 4, reps: "12" },
+        { name: "Standing dumbbell press", sets: 4, reps: "12" },
+      ]},
+      { name: "CHEST · BICEPS", day: "Miércoles", exercises: [
+        { name: "Bench press (RECORD)", sets: 1, reps: "1" },
+        { name: "Bench press", sets: 3, reps: "10" },
+        { name: "Incline dumbbell press", sets: 3, reps: "10" },
+        { name: "Hammer curls", sets: 5, reps: "5" },
+        { name: "Single-arm cable curls", sets: 3, reps: "10" },
+      ]},
+      { name: "DEADLIFT", day: "Sábado", exercises: [
+        { name: "Deadlift", sets: 1, reps: "MAX" },
+        { name: "Deadlift", sets: 3, reps: "8" },
+        { name: "Lat pull downs", sets: 5, reps: "10" },
+        { name: "Triceps extensions on cable machine", sets: 3, reps: "12" },
+        { name: "Dumbbell French press on flat bench", sets: 3, reps: "10" },
+        { name: "Diamond push-ups", sets: 2, reps: "MAX" },
+      ]},
+    ]
+  },
+  {
+    id: 4, label: "SEMANA 5",
+    days: [
+      { name: "LEGS · SHOULDER", day: "Lunes", exercises: [
+        { name: "Squats", sets: 2, reps: "2" },
+        { name: "Front squats", sets: 3, reps: "12" },
+        { name: "Sumo legs press", sets: 3, reps: "10" },
+        { name: "Standing barbell press", sets: 3, reps: "6" },
+        { name: "Seated dumbbell press", sets: 3, reps: "10" },
+      ]},
+      { name: "CHEST · TRICEPS", day: "Miércoles", exercises: [
+        { name: "Bench press", sets: 2, reps: "2" },
+        { name: "Incline dumbbell press 30°", sets: 3, reps: "10" },
+        { name: "Dips", sets: 3, reps: "15" },
+        { name: "Dumbbell French press incline 30°", sets: 3, reps: "12" },
+        { name: "Cable triceps extensions", sets: 4, reps: "12" },
+      ]},
+      { name: "BACK · BICEPS", day: "Viernes", exercises: [
+        { name: "Deadlift", sets: 2, reps: "2" },
+        { name: "Good morning", sets: 3, reps: "8" },
+        { name: "Bent-over rows with dumbbells", sets: 3, reps: "10" },
+        { name: "Pull-ups", sets: 3, reps: "10" },
+        { name: "Reverse-grip barbell curls", sets: 3, reps: "10" },
+        { name: "Bicep curls on cable machine", sets: 3, reps: "20" },
+      ]},
+    ]
+  },
+  {
+    id: 5, label: "SEMANA 6",
+    days: [
+      { name: "LEGS", day: "Lunes", exercises: [
+        { name: "Squats", sets: 3, reps: "3" },
+        { name: "Trap bar squats", sets: 3, reps: "10" },
+        { name: "Leg press", sets: 3, reps: "10" },
+        { name: "Sumo squats with dumbbells on chest", sets: 3, reps: "10" },
+      ]},
+      { name: "CHEST", day: "Miércoles", exercises: [
+        { name: "Bench press", sets: 3, reps: "3" },
+        { name: "Incline bench press 45°", sets: 3, reps: "8" },
+        { name: "Standing barbell press", sets: 3, reps: "6" },
+        { name: "Incline dumbbell press 40°", sets: 4, reps: "15" },
+      ]},
+      { name: "BACK", day: "Viernes", exercises: [
+        { name: "Deadlift", sets: 3, reps: "3" },
+        { name: "Reverse-grip bent-over rows", sets: 3, reps: "8" },
+        { name: "Lat pull downs", sets: 3, reps: "10" },
+        { name: "T-bar rows", sets: 4, reps: "10" },
+        { name: "Shrugs with barbell", sets: 4, reps: "10" },
+      ]},
+    ]
+  },
+  {
+    id: 6, label: "SEMANA 7",
+    days: [
+      { name: "LEGS", day: "Lunes", exercises: [
+        { name: "Squats", sets: 4, reps: "4" },
+        { name: "Front squats", sets: 3, reps: "10" },
+        { name: "Leg press", sets: 3, reps: "10" },
+        { name: "High jumps", sets: 4, reps: "12" },
+        { name: "Single-leg squats (support ok)", sets: 2, reps: "10" },
+      ]},
+      { name: "CHEST", day: "Miércoles", exercises: [
+        { name: "Bench press", sets: 4, reps: "4" },
+        { name: "Bench press (4s pause bottom)", sets: 3, reps: "3" },
+        { name: "Dumbbell bench press", sets: 3, reps: "12" },
+        { name: "Pullover", sets: 3, reps: "12" },
+        { name: "Floor presses", sets: 2, reps: "MAX" },
+      ]},
+      { name: "BACK · LEGS", day: "Viernes", exercises: [
+        { name: "Deadlift", sets: 4, reps: "4" },
+        { name: "Leg press", sets: 3, reps: "10" },
+        { name: "Cable rows (2s pause top)", sets: 5, reps: "8" },
+        { name: "Vertical jumps", sets: 3, reps: "10" },
+      ]},
+    ]
+  },
+  {
+    id: 7, label: "SEMANA 8",
+    days: [
+      { name: "LEGS", day: "Lunes", exercises: [
+        { name: "Squats", sets: 5, reps: "5" },
+        { name: "Leg press (pause 3s bottom)", sets: 3, reps: "8" },
+        { name: "Front squats with dumbbells", sets: 4, reps: "12" },
+        { name: "Long jumps", sets: 3, reps: "8" },
+        { name: "Weighted hyperextensions", sets: 3, reps: "10" },
+      ]},
+      { name: "BENCH PRESS", day: "Miércoles", exercises: [
+        { name: "Bench press", sets: 5, reps: "5" },
+        { name: "Narrow dumbbell press", sets: 3, reps: "10" },
+        { name: "Incline flyes 30°", sets: 3, reps: "12" },
+        { name: "Cable crossovers", sets: 4, reps: "15" },
+        { name: "Triceps push downs", sets: 3, reps: "12" },
+        { name: "Close grip bench press (3s↓/1s↑) ⚠️ spotter", sets: 3, reps: "5" },
+      ]},
+      { name: "BACK · BICEPS", day: "Viernes", exercises: [
+        { name: "Deadlift", sets: 5, reps: "5" },
+        { name: "Pull-ups (or cable pull downs)", sets: 4, reps: "8" },
+        { name: "Horizontal cable rows", sets: 4, reps: "10" },
+        { name: "Good morning ⚠️ light weight", sets: 3, reps: "10" },
+      ]},
+    ]
+  },
+];
+
+const STORAGE_KEY = "gymlog_v3";
+function loadDb() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch { return {}; } }
+function saveDb(db) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(db)); } catch {} }
+function blankSets(n) { return Array.from({ length: n }, () => ({ kg: "", reps: "", done: false })); }
+
+function GymPlanner() {
+  const [db, setDb] = useState(loadDb);
+  const [program, setProgram] = useState(() => { try { return JSON.parse(localStorage.getItem("gym_prog_v3")) || PROGRAM; } catch { return PROGRAM; } });
+  const [weekIdx, setWeekIdx] = useState(0);
+  const [dayIdx, setDayIdx] = useState(0);
+  const [tab, setTab] = useState("train");
+  const [editingWeek, setEditingWeek] = useState(null);
+  const [toast, setToast] = useState("");
+  const [videoModal, setVideoModal] = useState(null);
+  const [videoInput, setVideoInput] = useState("");
+  const [videos, setVideos] = useState(() => { try { return JSON.parse(localStorage.getItem("gym_videos_v1")) || {}; } catch { return {}; } });
+
+  useEffect(() => { saveDb(db); }, [db]);
+  useEffect(() => { try { localStorage.setItem("gym_prog_v3", JSON.stringify(program)); } catch {} }, [program]);
+  useEffect(() => { try { localStorage.setItem("gym_videos_v1", JSON.stringify(videos)); } catch {} }, [videos]);
+
+  function showToast(msg) { setToast(msg); setTimeout(() => setToast(""), 1800); }
+  function videoKey(wi, di, ei) { return `${wi}_${di}_${ei}`; }
+  function openVideoModal(wi, di, ei, name) { const key = videoKey(wi, di, ei); setVideoInput(videos[key] || ""); setVideoModal({ wi, di, ei, name, key }); }
+  function saveVideo() { if (!videoModal) return; setVideos(prev => ({ ...prev, [videoModal.key]: videoInput.trim() })); setVideoModal(null); showToast("🎬 Vídeo guardado"); }
+  function deleteVideo() { if (!videoModal) return; setVideos(prev => { const n = { ...prev }; delete n[videoModal.key]; return n; }); setVideoModal(null); showToast("Vídeo eliminado"); }
+  function getYouTubeId(url) { if (!url) return null; const m = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&?/\s]{11})/); return m ? m[1] : null; }
+
+  const week = program[weekIdx];
+  const dayData = week?.days[dayIdx];
+  const sessionKey = `w${weekIdx}_d${dayIdx}`;
+  const session = db[sessionKey] || {};
+
+  function getSets(exIdx) { const ex = dayData?.exercises[exIdx]; if (!ex) return []; return session[`ex${exIdx}`] || blankSets(ex.sets); }
+  function updateSet(exIdx, setIdx, field, val) { setDb(prev => { const key = `ex${exIdx}`; const sets = prev[sessionKey]?.[key] || blankSets(dayData.exercises[exIdx].sets); const next = sets.map((s, i) => i === setIdx ? { ...s, [field]: val } : s); return { ...prev, [sessionKey]: { ...prev[sessionKey], [key]: next } }; }); }
+  function addSet(exIdx) { setDb(prev => { const key = `ex${exIdx}`; const sets = prev[sessionKey]?.[key] || blankSets(dayData.exercises[exIdx].sets); return { ...prev, [sessionKey]: { ...prev[sessionKey], [key]: [...sets, { kg: "", reps: "", done: false }] } }; }); }
+  function removeLastSet(exIdx) { setDb(prev => { const key = `ex${exIdx}`; const sets = (prev[sessionKey]?.[key] || blankSets(dayData.exercises[exIdx].sets)).slice(0, -1); if (!sets.length) return prev; return { ...prev, [sessionKey]: { ...prev[sessionKey], [key]: sets } }; }); }
+  function markDay() { setDb(prev => ({ ...prev, [sessionKey]: { ...prev[sessionKey], attended: !prev[sessionKey]?.attended } })); showToast(session.attended ? "Desmarcado" : "✅ ¡Entreno registrado!"); }
+  function setNote(note) { setDb(prev => ({ ...prev, [sessionKey]: { ...prev[sessionKey], note } })); }
+
+  function updateExName(wi, di, ei, val) { setProgram(prev => { const p = JSON.parse(JSON.stringify(prev)); p[wi].days[di].exercises[ei].name = val; return p; }); }
+  function updateDayName(wi, di, val) { setProgram(prev => { const p = JSON.parse(JSON.stringify(prev)); p[wi].days[di].name = val; return p; }); }
+  function updateWeekLabel(wi, val) { setProgram(prev => { const p = JSON.parse(JSON.stringify(prev)); p[wi].label = val; return p; }); }
+  function addExercise(wi, di) { setProgram(prev => { const p = JSON.parse(JSON.stringify(prev)); p[wi].days[di].exercises.push({ name: "Nuevo ejercicio", sets: 3, reps: "10" }); return p; }); }
+  function removeExercise(wi, di, ei) { setProgram(prev => { const p = JSON.parse(JSON.stringify(prev)); p[wi].days[di].exercises.splice(ei, 1); return p; }); }
+  function addDay(wi) { setProgram(prev => { const p = JSON.parse(JSON.stringify(prev)); p[wi].days.push({ name: "NUEVO DÍA", day: "—", exercises: [{ name: "Ejercicio 1", sets: 3, reps: "10" }] }); return p; }); }
+  function removeDay(wi, di) { setProgram(prev => { const p = JSON.parse(JSON.stringify(prev)); p[wi].days.splice(di, 1); return p; }); }
+  function addWeek() { setProgram(prev => [...prev, { id: Date.now(), label: `SEMANA ${prev.length + 1}`, days: [{ name: "DÍA 1", day: "Lunes", exercises: [{ name: "Ejercicio 1", sets: 3, reps: "10" }] }] }]); }
+  function removeWeek(wi) { if (program.length <= 1) return showToast("No puedes eliminar la única semana"); setProgram(prev => prev.filter((_, i) => i !== wi)); if (weekIdx >= wi) setWeekIdx(Math.max(0, weekIdx - 1)); }
+
+  function getLog() {
+    return Object.entries(db).filter(([k, v]) => v.attended).map(([k, v]) => {
+      const m = k.match(/w(\d+)_d(\d+)/); if (!m) return null;
+      const [, wi, di] = m; const w = program[wi]; const d = w?.days[di];
+      return { key: k, weekLabel: w?.label || `Semana ${wi}`, dayName: d?.name || `Día ${di}`, note: v.note };
+    }).filter(Boolean).reverse();
+  }
+
+  const attended = !!session.attended;
+  const completedSets = dayData?.exercises.reduce((acc, _, ei) => acc + getSets(ei).filter(s => s.done).length, 0) || 0;
+  const totalSets = dayData?.exercises.reduce((a, ex) => a + ex.sets, 0) || 0;
+  const progress = totalSets ? Math.round((completedSets / totalSets) * 100) : 0;
+
+  const S = {
+    app: { minHeight: "100vh", background: "#0f0f0f", color: "#f0ede6", fontFamily: "'Courier New', monospace", paddingBottom: 90 },
+    header: { background: "#0f0f0f", borderBottom: "1px solid #222", padding: "env(safe-area-inset-top, 18px) 16px 0 16px", paddingTop: "max(env(safe-area-inset-top), 18px)", position: "sticky", top: 0, zIndex: 10 },
+  };
+
+  return (
+    <div style={S.app}>
+      <div style={S.header}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
+          <div>
+            <div style={{ fontSize: 10, letterSpacing: 4, color: "#c8ff00", marginBottom: 2 }}>TRAINING LOG</div>
+            <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: -1 }}>GYM TRACKER</div>
+          </div>
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontSize: 10, color: "#555", letterSpacing: 2 }}>PROGRESO HOY</div>
+            <div style={{ fontSize: 20, fontWeight: 700, color: progress === 100 ? "#c8ff00" : "#f0ede6" }}>{progress}%</div>
+          </div>
+        </div>
+        <div style={{ display: "flex" }}>
+          {[["train","ENTRENO"],["weeks","PROGRAMA"],["log","HISTORIAL"]].map(([key, label]) => (
+            <button key={key} onClick={() => setTab(key)} style={{ flex: 1, background: "none", border: "none", borderBottom: `2px solid ${tab===key?"#c8ff00":"transparent"}`, color: tab===key?"#c8ff00":"#444", fontFamily: "inherit", fontSize: 10, letterSpacing: 2, padding: "8px 0 10px", cursor: "pointer" }}>{label}</button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{ padding: "0 16px" }}>
+
+        {tab === "train" && (
+          <>
+            <div style={{ marginTop: 16 }}>
+              <div style={{ fontSize: 9, color: "#555", letterSpacing: 3, marginBottom: 8 }}>SEMANA</div>
+              <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4 }}>
+                {program.map((w, wi) => (
+                  <button key={wi} onClick={() => { setWeekIdx(wi); setDayIdx(0); }} style={{ flex: "0 0 auto", padding: "7px 14px", borderRadius: 20, background: weekIdx===wi?"#c8ff00":"#181818", color: weekIdx===wi?"#0f0f0f":"#555", border: "none", fontFamily: "inherit", fontSize: 10, fontWeight: 700, letterSpacing: 1, cursor: "pointer", whiteSpace: "nowrap" }}>{w.label}</button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ marginTop: 14 }}>
+              <div style={{ fontSize: 9, color: "#555", letterSpacing: 3, marginBottom: 8 }}>DÍA</div>
+              <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4 }}>
+                {week?.days.map((d, di) => {
+                  const sk = `w${weekIdx}_d${di}`; const done = db[sk]?.attended;
+                  return (
+                    <button key={di} onClick={() => setDayIdx(di)} style={{ flex: "0 0 auto", padding: "7px 14px", borderRadius: 20, background: dayIdx===di?"#f0ede6":done?"#1a2200":"#181818", color: dayIdx===di?"#0f0f0f":done?"#c8ff00":"#555", border: `1px solid ${dayIdx===di?"transparent":done?"#c8ff0033":"#222"}`, fontFamily: "inherit", fontSize: 10, fontWeight: 700, letterSpacing: 1, cursor: "pointer", whiteSpace: "nowrap" }}>
+                      {done?"✓ ":""}{d.name.split("·")[0].trim()}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {dayData && (
+              <>
+                <div style={{ marginTop: 20, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div>
+                    <div style={{ fontSize: 10, color: "#555", letterSpacing: 2 }}>{dayData.day.toUpperCase()}</div>
+                    <div style={{ fontSize: 17, fontWeight: 900, marginTop: 2, letterSpacing: -0.5 }}>{dayData.name}</div>
+                  </div>
+                  <button onClick={markDay} style={{ background: attended?"#c8ff00":"transparent", color: attended?"#0f0f0f":"#c8ff00", border: "2px solid #c8ff00", borderRadius: 8, padding: "8px 16px", fontFamily: "inherit", fontSize: 11, fontWeight: 900, letterSpacing: 1, cursor: "pointer" }}>{attended?"✓ FUI":"MARCAR"}</button>
+                </div>
+
+                <div style={{ marginTop: 12, height: 3, background: "#222", borderRadius: 2 }}>
+                  <div style={{ height: "100%", width: `${progress}%`, background: "#c8ff00", borderRadius: 2, transition: "width .3s" }} />
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, fontSize: 9, color: "#444", letterSpacing: 1 }}>
+                  <span>{completedSets} SERIES COMPLETADAS</span><span>{totalSets} TOTAL</span>
+                </div>
+
+                {dayData.exercises.map((ex, ei) => {
+                  const sets = getSets(ei);
+                  const exDone = sets.length > 0 && sets.every(s => s.done);
+                  const vk = videoKey(weekIdx, dayIdx, ei);
+                  const vurl = videos[vk];
+                  const ytId = getYouTubeId(vurl);
+                  return (
+                    <div key={ei} style={{ marginTop: 16, background: "#141414", borderRadius: 12, border: `1px solid ${exDone?"#c8ff0033":"#1e1e1e"}` }}>
+                      <div style={{ padding: "12px 14px 10px", borderBottom: "1px solid #1e1e1e", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 12, fontWeight: 700 }}>{ex.name}</div>
+                          <div style={{ fontSize: 10, color: "#555", marginTop: 2, letterSpacing: 1 }}>{ex.sets} × {ex.reps}</div>
+                        </div>
+                        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                          {exDone && <span style={{ color: "#c8ff00", fontSize: 16 }}>✓</span>}
+                          <button onClick={() => openVideoModal(weekIdx, dayIdx, ei, ex.name)} style={{ background: vurl?"#c8ff0015":"transparent", border: `1px solid ${vurl?"#c8ff0055":"#2a2a2a"}`, borderRadius: 7, padding: "5px 9px", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
+                            {ytId ? <img src={`https://img.youtube.com/vi/${ytId}/default.jpg`} style={{ width: 28, height: 20, borderRadius: 3, objectFit: "cover" }} alt="" /> : <span style={{ fontSize: 14 }}>🎬</span>}
+                            <span style={{ fontSize: 9, color: vurl?"#c8ff00":"#444", letterSpacing: 1, fontFamily: "inherit" }}>{vurl?"VER":"VIDEO"}</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      <div style={{ padding: "6px 14px 0" }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "22px 1fr 1fr 30px", gap: 6, fontSize: 9, color: "#444", letterSpacing: 2, marginBottom: 4 }}>
+                          <span>#</span><span>KG</span><span>REPS</span><span></span>
+                        </div>
+                        {sets.map((s, si) => (
+                          <div key={si} style={{ display: "grid", gridTemplateColumns: "22px 1fr 1fr 30px", gap: 6, marginBottom: 6, alignItems: "center", background: s.done?"#0d1900":"transparent", borderRadius: 6, padding: "2px 0" }}>
+                            <span style={{ fontSize: 11, color: "#444", fontWeight: 700, paddingLeft: 2 }}>{si+1}</span>
+                            <input type="number" placeholder="—" value={s.kg} onChange={e => updateSet(ei, si, "kg", e.target.value)}
+                              style={{ background: "#0f0f0f", border: "1px solid #222", borderRadius: 6, color: "#c8ff00", fontFamily: "inherit", fontSize: 15, padding: "8px 6px", textAlign: "center", outline: "none", width: "100%", boxSizing: "border-box" }} />
+                            <input type="number" placeholder="—" value={s.reps} onChange={e => updateSet(ei, si, "reps", e.target.value)}
+                              style={{ background: "#0f0f0f", border: "1px solid #222", borderRadius: 6, color: "#f0ede6", fontFamily: "inherit", fontSize: 15, padding: "8px 6px", textAlign: "center", outline: "none", width: "100%", boxSizing: "border-box" }} />
+                            <button onClick={() => updateSet(ei, si, "done", !s.done)} style={{ width: 30, height: 34, borderRadius: 6, border: "none", background: s.done?"#c8ff00":"#1e1e1e", color: s.done?"#0f0f0f":"#444", cursor: "pointer", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center" }}>✓</button>
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{ display: "flex", gap: 6, padding: "6px 14px 12px" }}>
+                        <button onClick={() => addSet(ei)} style={{ background: "none", border: "1px dashed #2a2a2a", borderRadius: 6, color: "#444", fontFamily: "inherit", fontSize: 9, letterSpacing: 2, padding: "5px 10px", cursor: "pointer" }}>+ SERIE</button>
+                        {sets.length > 1 && <button onClick={() => removeLastSet(ei)} style={{ background: "none", border: "1px solid #1e1e1e", borderRadius: 6, color: "#333", fontFamily: "inherit", fontSize: 9, padding: "5px 10px", cursor: "pointer" }}>− QUITAR</button>}
+                      </div>
+                    </div>
+                  );
+                })}
+
+                <textarea placeholder="Notas del día..." value={session.note||""} onChange={e => setNote(e.target.value)} rows={2}
+                  style={{ marginTop: 14, width: "100%", background: "#141414", border: "1px solid #1e1e1e", borderRadius: 10, color: "#777", fontFamily: "inherit", fontSize: 12, padding: "11px 13px", resize: "none", outline: "none", boxSizing: "border-box" }} />
+              </>
+            )}
+          </>
+        )}
+
+        {tab === "weeks" && (
+          <div style={{ marginTop: 16 }}>
+            {program.map((w, wi) => (
+              <div key={wi} style={{ marginBottom: 20, background: "#141414", borderRadius: 12, border: "1px solid #1e1e1e", overflow: "hidden" }}>
+                <div style={{ padding: "12px 14px", borderBottom: "1px solid #1e1e1e", display: "flex", alignItems: "center", gap: 8, background: "#181818" }}>
+                  {editingWeek===wi ? (
+                    <input value={w.label} onChange={e => updateWeekLabel(wi, e.target.value)} style={{ flex: 1, background: "transparent", border: "1px solid #c8ff0055", borderRadius: 4, color: "#c8ff00", fontFamily: "inherit", fontSize: 13, fontWeight: 900, padding: "3px 8px" }} />
+                  ) : (
+                    <span style={{ flex: 1, fontSize: 13, fontWeight: 900, color: "#c8ff00", letterSpacing: 1 }}>{w.label}</span>
+                  )}
+                  <button onClick={() => setEditingWeek(editingWeek===wi?null:wi)} style={{ background: "none", border: "none", color: editingWeek===wi?"#c8ff00":"#444", cursor: "pointer", fontSize: 13, padding: "2px 6px" }}>{editingWeek===wi?"✓":"✏"}</button>
+                  <button onClick={() => removeWeek(wi)} style={{ background: "none", border: "none", color: "#442222", cursor: "pointer", fontSize: 13, padding: "2px 6px" }}>✕</button>
+                </div>
+                {w.days.map((d, di) => (
+                  <div key={di} style={{ borderBottom: "1px solid #1a1a1a" }}>
+                    <div style={{ padding: "10px 14px 6px", display: "flex", alignItems: "center", gap: 6 }}>
+                      {editingWeek===wi ? (
+                        <input value={d.name} onChange={e => updateDayName(wi, di, e.target.value)} style={{ flex: 1, background: "transparent", border: "1px solid #333", borderRadius: 4, color: "#f0ede6", fontFamily: "inherit", fontSize: 11, fontWeight: 700, padding: "2px 6px" }} />
+                      ) : (
+                        <span style={{ flex: 1, fontSize: 11, fontWeight: 700, color: "#f0ede6", letterSpacing: 1 }}>{d.day} — {d.name}</span>
+                      )}
+                      {editingWeek===wi && <button onClick={() => removeDay(wi, di)} style={{ background: "none", border: "none", color: "#442222", cursor: "pointer", fontSize: 11 }}>✕ día</button>}
+                    </div>
+                    {d.exercises.map((ex, ei) => (
+                      <div key={ei} style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 14px 4px 22px" }}>
+                        <span style={{ fontSize: 10, color: "#444", minWidth: 8 }}>·</span>
+                        {editingWeek===wi ? (
+                          <>
+                            <input value={ex.name} onChange={e => updateExName(wi, di, ei, e.target.value)} style={{ flex: 1, background: "transparent", border: "1px solid #222", borderRadius: 4, color: "#888", fontFamily: "inherit", fontSize: 11, padding: "3px 6px" }} />
+                            <span style={{ fontSize: 10, color: "#444", whiteSpace: "nowrap" }}>{ex.sets}×{ex.reps}</span>
+                            <button onClick={() => removeExercise(wi, di, ei)} style={{ background: "none", border: "none", color: "#442222", cursor: "pointer", fontSize: 11, padding: "0 2px" }}>✕</button>
+                          </>
+                        ) : (
+                          <>
+                            <span style={{ flex: 1, fontSize: 11, color: "#777" }}>{ex.name}</span>
+                            <span style={{ fontSize: 10, color: "#444", whiteSpace: "nowrap" }}>{ex.sets}×{ex.reps}</span>
+                          </>
+                        )}
+                      </div>
+                    ))}
+                    {editingWeek===wi && <button onClick={() => addExercise(wi, di)} style={{ margin: "4px 14px 8px 30px", background: "none", border: "1px dashed #2a2a2a", borderRadius: 5, color: "#444", fontFamily: "inherit", fontSize: 9, letterSpacing: 2, padding: "4px 10px", cursor: "pointer" }}>+ EJERCICIO</button>}
+                  </div>
+                ))}
+                {editingWeek===wi && <button onClick={() => addDay(wi)} style={{ margin: "8px 14px", background: "none", border: "1px dashed #2a2a2a", borderRadius: 6, color: "#555", fontFamily: "inherit", fontSize: 9, letterSpacing: 2, padding: "6px 14px", cursor: "pointer" }}>+ DÍA</button>}
+              </div>
+            ))}
+            <button onClick={addWeek} style={{ width: "100%", background: "none", border: "2px dashed #2a2a2a", borderRadius: 10, color: "#555", fontFamily: "inherit", fontSize: 10, letterSpacing: 2, padding: "14px", cursor: "pointer", marginBottom: 20 }}>+ AÑADIR SEMANA</button>
+          </div>
+        )}
+
+        {tab === "log" && (
+          <div style={{ marginTop: 16 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 20 }}>
+              {[["ENTRENOS", getLog().length], ["SEMANAS", program.length], ["SERIES HOY", completedSets]].map(([l, v]) => (
+                <div key={l} style={{ background: "#141414", borderRadius: 10, padding: "14px 10px", border: "1px solid #1e1e1e", textAlign: "center" }}>
+                  <div style={{ fontSize: 22, fontWeight: 900, color: "#c8ff00" }}>{v}</div>
+                  <div style={{ fontSize: 8, color: "#444", letterSpacing: 2, marginTop: 4 }}>{l}</div>
+                </div>
+              ))}
+            </div>
+            {getLog().length === 0 ? (
+              <div style={{ textAlign: "center", color: "#444", marginTop: 50, fontSize: 13 }}>Sin entrenos registrados aún.<br />¡Marca tu primer día!</div>
+            ) : getLog().map(({ key, weekLabel, dayName, note }) => (
+              <div key={key} style={{ marginBottom: 10, background: "#141414", borderRadius: 10, padding: "13px 14px", border: "1px solid #c8ff0022" }}>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span style={{ fontSize: 11, fontWeight: 700 }}>{dayName}</span>
+                  <span style={{ fontSize: 10, color: "#c8ff00" }}>{weekLabel}</span>
+                </div>
+                {note && <div style={{ fontSize: 11, color: "#555", marginTop: 6, fontStyle: "italic" }}>"{note}"</div>}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {videoModal && (
+        <div style={{ position: "fixed", inset: 0, background: "#000000cc", zIndex: 200, display: "flex", alignItems: "flex-end", justifyContent: "center" }}
+          onClick={e => { if (e.target === e.currentTarget) setVideoModal(null); }}>
+          <div style={{ width: "100%", maxWidth: 480, background: "#141414", borderRadius: "16px 16px 0 0", padding: "20px 18px 40px", border: "1px solid #222" }}>
+            <div style={{ fontSize: 9, color: "#555", letterSpacing: 3, marginBottom: 4 }}>VÍDEO DE REFERENCIA</div>
+            <div style={{ fontSize: 14, fontWeight: 900, marginBottom: 16, color: "#f0ede6" }}>{videoModal.name}</div>
+            {(() => {
+              const ytId = getYouTubeId(videoInput);
+              return ytId ? (
+                <div style={{ marginBottom: 14, borderRadius: 10, overflow: "hidden" }}>
+                  <iframe src={`https://www.youtube.com/embed/${ytId}`} style={{ width: "100%", height: 200, border: "none", display: "block" }} allowFullScreen title="exercise video" />
+                </div>
+              ) : videoInput ? (
+                <a href={videoInput} target="_blank" rel="noreferrer" style={{ display: "block", marginBottom: 14, padding: "12px", background: "#1e1e1e", borderRadius: 8, color: "#c8ff00", fontSize: 11, wordBreak: "break-all", textDecoration: "none" }}>🔗 Abrir enlace →</a>
+              ) : null;
+            })()}
+            <input value={videoInput} onChange={e => setVideoInput(e.target.value)} placeholder="Pega un enlace de YouTube u otro vídeo..."
+              style={{ width: "100%", background: "#0f0f0f", border: "1px solid #333", borderRadius: 8, color: "#f0ede6", fontFamily: "inherit", fontSize: 12, padding: "12px", outline: "none", boxSizing: "border-box", marginBottom: 12 }} />
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={saveVideo} style={{ flex: 1, background: "#c8ff00", border: "none", borderRadius: 8, color: "#0f0f0f", fontFamily: "inherit", fontSize: 11, fontWeight: 900, letterSpacing: 1, padding: "12px", cursor: "pointer" }}>GUARDAR</button>
+              {videos[videoModal.key] && <button onClick={deleteVideo} style={{ background: "transparent", border: "1px solid #442222", borderRadius: 8, color: "#aa4444", fontFamily: "inherit", fontSize: 11, padding: "12px 16px", cursor: "pointer" }}>🗑</button>}
+              <button onClick={() => setVideoModal(null)} style={{ background: "transparent", border: "1px solid #222", borderRadius: 8, color: "#555", fontFamily: "inherit", fontSize: 11, padding: "12px 16px", cursor: "pointer" }}>✕</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {toast && (
+        <div style={{ position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)", background: "#c8ff00", color: "#0f0f0f", borderRadius: 100, padding: "10px 22px", fontSize: 11, fontWeight: 900, letterSpacing: 1, whiteSpace: "nowrap", zIndex: 100 }}>{toast}</div>
+      )}
+
+      <style>{`* { box-sizing: border-box; } input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; } ::-webkit-scrollbar { display: none; }`}</style>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<GymPlanner />);
+  </script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch(() => {});
+      });
+    }
+  </script>
+</body>
+</html>
