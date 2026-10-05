@@ -74,11 +74,11 @@ const PROGRAM = [
         { name: "Standing barbell shoulder press", sets: 3, reps: "8" },
       ]},
       { name: "CHEST · TRICEPS", day: "Miércoles", exercises: [
-        { name: "Incline bench press 30°", sets: 3, reps: "10" },
-        { name: "Dumbbell bench press", sets: 3, reps: "10" },
-        { name: "Cable crossovers", sets: 3, reps: "12" },
-        { name: "Close-grip bench press", sets: 3, reps: "8" },
-        { name: "Seated dumbbell front raises", sets: 3, reps: "10" },
+        { name: "Incline bench press 30°", sets: 3, reps: "10", note: "10kg por lado, 12,5kg" },
+        { name: "Dumbbell bench press", sets: 3, reps: "10", note: "12kg, 12, 14" },
+        { name: "Cable crossovers", sets: 3, reps: "12", note: "5kg por lado, 6,5" },
+        { name: "Close-grip bench press", sets: 3, reps: "8", note: "5kg por lado, 7,5" },
+        { name: "Seated dumbbell front raises", sets: 3, reps: "10", note: "12kg, 14" },
         { name: "Max push-ups", sets: 1, reps: "MAX" },
       ]},
       { name: "BACK · BICEPS", day: "Viernes", exercises: [
@@ -259,11 +259,13 @@ const PROGRAM = [
 const STORAGE_KEY = "gymlog_v3";
 function loadDb() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch { return {}; } }
 function saveDb(db) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(db)); } catch {} }
+function cleanName(n) { return n.replace(/\(.*?\)/g, "").replace(/⚠️.*/, "").replace(/\s+/g, " ").trim().toLowerCase(); }
+function ytSearch(n) { return "https://www.youtube.com/results?search_query=" + encodeURIComponent(cleanName(n) + " exercise proper form tutorial"); }
 function blankSets(n) { return Array.from({ length: n }, () => ({ kg: "", reps: "", done: false })); }
 
 function GymPlanner() {
   const [db, setDb] = useState(loadDb);
-  const [program, setProgram] = useState(() => { try { return JSON.parse(localStorage.getItem("gym_prog_v3")) || PROGRAM; } catch { return PROGRAM; } });
+  const [program, setProgram] = useState(() => { try { return JSON.parse(localStorage.getItem("gym_prog_v4")) || PROGRAM; } catch { return PROGRAM; } });
   const [weekIdx, setWeekIdx] = useState(0);
   const [dayIdx, setDayIdx] = useState(0);
   const [tab, setTab] = useState("train");
@@ -271,14 +273,14 @@ function GymPlanner() {
   const [toast, setToast] = useState("");
   const [videoModal, setVideoModal] = useState(null);
   const [videoInput, setVideoInput] = useState("");
-  const [videos, setVideos] = useState(() => { try { return JSON.parse(localStorage.getItem("gym_videos_v1")) || {}; } catch { return {}; } });
+  const [videos, setVideos] = useState(() => { try { return JSON.parse(localStorage.getItem("gym_videos_v2")) || {}; } catch { return {}; } });
 
   useEffect(() => { saveDb(db); }, [db]);
-  useEffect(() => { try { localStorage.setItem("gym_prog_v3", JSON.stringify(program)); } catch {} }, [program]);
-  useEffect(() => { try { localStorage.setItem("gym_videos_v1", JSON.stringify(videos)); } catch {} }, [videos]);
+  useEffect(() => { try { localStorage.setItem("gym_prog_v4", JSON.stringify(program)); } catch {} }, [program]);
+  useEffect(() => { try { localStorage.setItem("gym_videos_v2", JSON.stringify(videos)); } catch {} }, [videos]);
 
   function showToast(msg) { setToast(msg); setTimeout(() => setToast(""), 1800); }
-  function videoKey(wi, di, ei) { return `${wi}_${di}_${ei}`; }
+  function videoKey(wi, di, ei) { const ex = program[wi]?.days[di]?.exercises[ei]; return cleanName(ex?.name || ""); }
   function openVideoModal(wi, di, ei, name) { const key = videoKey(wi, di, ei); setVideoInput(videos[key] || ""); setVideoModal({ wi, di, ei, name, key }); }
   function saveVideo() { if (!videoModal) return; setVideos(prev => ({ ...prev, [videoModal.key]: videoInput.trim() })); setVideoModal(null); showToast("🎬 Vídeo guardado"); }
   function deleteVideo() { if (!videoModal) return; setVideos(prev => { const n = { ...prev }; delete n[videoModal.key]; return n; }); setVideoModal(null); showToast("Vídeo eliminado"); }
@@ -400,6 +402,7 @@ function GymPlanner() {
                         <div style={{ flex: 1 }}>
                           <div style={{ fontSize: 12, fontWeight: 700 }}>{ex.name}</div>
                           <div style={{ fontSize: 10, color: "#555", marginTop: 2, letterSpacing: 1 }}>{ex.sets} × {ex.reps}</div>
+                          {ex.note && <div style={{ fontSize: 10, color: "#c8ff00aa", marginTop: 3 }}>📝 {ex.note}</div>}
                         </div>
                         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                           {exDone && <span style={{ color: "#c8ff00", fontSize: 16 }}>✓</span>}
@@ -531,6 +534,8 @@ function GymPlanner() {
                 <a href={videoInput} target="_blank" rel="noreferrer" style={{ display: "block", marginBottom: 14, padding: "12px", background: "#1e1e1e", borderRadius: 8, color: "#c8ff00", fontSize: 11, wordBreak: "break-all", textDecoration: "none" }}>🔗 Abrir enlace →</a>
               ) : null;
             })()}
+            <a href={ytSearch(videoModal.name)} target="_blank" rel="noreferrer" style={{ display: "block", marginBottom: 12, padding: "13px", background: "#c8ff0015", border: "1px solid #c8ff0055", borderRadius: 8, color: "#c8ff00", fontSize: 12, fontWeight: 900, letterSpacing: 1, textDecoration: "none", textAlign: "center" }}>🔎 VER TUTORIALES EN YOUTUBE</a>
+            <div style={{ fontSize: 10, color: "#555", marginBottom: 8, lineHeight: 1.4 }}>¿Te gusta uno? Copia su enlace y pégalo aquí. Quedará guardado para este ejercicio en todas las semanas.</div>
             <input value={videoInput} onChange={e => setVideoInput(e.target.value)} placeholder="Pega un enlace de YouTube u otro vídeo..."
               style={{ width: "100%", background: "#0f0f0f", border: "1px solid #333", borderRadius: 8, color: "#f0ede6", fontFamily: "inherit", fontSize: 12, padding: "12px", outline: "none", boxSizing: "border-box", marginBottom: 12 }} />
             <div style={{ display: "flex", gap: 8 }}>

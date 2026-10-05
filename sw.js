@@ -1,8 +1,8 @@
-const CACHE = "gym-tracker-v1";
+const CACHE = "gym-tracker-v2";
 const ASSETS = [
-  "/",
-  "/index.html",
-  "/manifest.json",
+  "./",
+  "./index.html",
+  "./manifest.json",
   "https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js",
   "https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js",
   "https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"
@@ -20,6 +20,6 @@ self.addEventListener("activate", e => {
 
 self.addEventListener("fetch", e => {
   e.respondWith(
-    caches.match(e.request).then(cached => cached || fetch(e.request).catch(() => caches.match("/index.html")))
+    caches.match(e.request).then(cached => cached || fetch(e.request).catch(() => caches.match("./index.html")))
   );
 });
