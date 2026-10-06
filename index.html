@@ -3,18 +3,21 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <meta name="theme-color" content="#0f0f0f" />
+  <meta name="theme-color" content="#f6f5f1" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="Gym Tracker" />
-  <meta name="description" content="Tu planificador de entrenamiento personal" />
   <title>Gym Tracker</title>
   <link rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" href="icon-192.png" />
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: #0f0f0f; }
-    #root { min-height: 100vh; }
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { background: #f6f5f1; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, "Segoe UI", Roboto, sans-serif; color: #1c1c1a; }
+    input, textarea, button { font-family: inherit; }
+    input:focus, textarea:focus { outline: none; border-color: #1c1c1a !important; }
+    ::-webkit-scrollbar { display: none; }
   </style>
 </head>
 <body>
@@ -256,16 +259,171 @@ const PROGRAM = [
   },
 ];
 
-const STORAGE_KEY = "gymlog_v3";
-function loadDb() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch { return {}; } }
-function saveDb(db) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(db)); } catch {} }
-function cleanName(n) { return n.replace(/\(.*?\)/g, "").replace(/⚠️.*/, "").replace(/\s+/g, " ").trim().toLowerCase(); }
+// ── PROGRAMA FULL BODY 3 DÍAS (bloque de 4 semanas, repetible) ──────────────
+const FB_NOTES = [
+  "Elige pesos que puedas mover con buena técnica dejando 1-2 reps en reserva.",
+  "Sube un poco el peso en los ejercicios principales respecto a la semana 1.",
+  "Semana más pesada: menos repeticiones, más peso, técnica impecable.",
+  "Descarga: usa un 60-70% del peso de la semana 3. Después repite el bloque subiendo peso.",
+];
+function fbWeek(n) {
+  const main = [{ sets: 3, reps: "10" }, { sets: 4, reps: "8" }, { sets: 4, reps: "6" }, { sets: 3, reps: "10" }][n];
+  const dl = ["8", "6", "5", "8"][n];
+  return {
+    id: "fb" + n, label: `SEMANA ${n + 1}`,
+    days: [
+      { name: "FULL BODY A", day: "Lunes", dayNote: FB_NOTES[n], exercises: [
+        { name: "Barbell squats", sets: main.sets, reps: main.reps },
+        { name: "Bench press", sets: main.sets, reps: main.reps },
+        { name: "Bent-over barbell row", sets: 3, reps: "10" },
+        { name: "Standing dumbbell press", sets: 3, reps: "10" },
+        { name: "Dumbbell curls", sets: 2, reps: "12" },
+        { name: "Plank", sets: 3, reps: "45s" },
+      ]},
+      { name: "FULL BODY B", day: "Miércoles", dayNote: FB_NOTES[n], exercises: [
+        { name: "Deadlift", sets: 3, reps: dl },
+        { name: "Incline dumbbell press", sets: 3, reps: "10" },
+        { name: "Pull-ups (or lat pulldown)", sets: 3, reps: "8" },
+        { name: "Walking lunges with dumbbells", sets: 3, reps: "10" },
+        { name: "Triceps pushdowns", sets: 3, reps: "12" },
+        { name: "Leg raise on bars", sets: 3, reps: "12" },
+      ]},
+      { name: "FULL BODY C", day: "Viernes", dayNote: FB_NOTES[n], exercises: [
+        { name: "Leg press", sets: 3, reps: "12" },
+        { name: "Standing barbell press", sets: main.sets, reps: main.reps },
+        { name: "Seated cable rows", sets: 3, reps: "10" },
+        { name: "Romanian deadlift", sets: 3, reps: "10" },
+        { name: "Dips", sets: 3, reps: "10" },
+        { name: "Lateral raises with dumbbells", sets: 3, reps: "15" },
+        { name: "Hammer curls", sets: 2, reps: "12" },
+      ]},
+    ],
+  };
+}
+
+// ── PROGRAMA FUERZA + MASA: Torso/Pierna 4 días, 8 semanas ─────────────────
+const HY = [
+  { p: "8", ps: 4, h: "12", hs: 3, note: "Semana 1: pesos con los que te sobren 2-3 reps. Céntrate en la técnica." },
+  { p: "6", ps: 4, h: "10", hs: 3, note: "Sube peso en los ejercicios principales. Deja 1-2 reps en reserva." },
+  { p: "5", ps: 4, h: "10", hs: 4, note: "Más volumen: los accesorios suben una serie. Acércate al fallo en la última serie." },
+  { p: "8", ps: 3, h: "12", hs: 2, note: "Descarga: usa un 60% del peso y menos series. Recuperar también es entrenar." },
+  { p: "6", ps: 4, h: "10", hs: 3, note: "Bloque 2: empieza con más peso que en la semana 2." },
+  { p: "5", ps: 5, h: "8", hs: 4, note: "Más series y más peso. Descansa 2-3 min en los ejercicios principales." },
+  { p: "4", ps: 5, h: "8", hs: 4, note: "La semana más dura. Técnica perfecta y ayudante en press banca y sentadilla." },
+  { p: "8", ps: 3, h: "12", hs: 2, note: "Descarga final. Luego puedes probar récords o repetir el programa con más peso." },
+];
+function hyWeek(n) {
+  const c = HY[n]; const P = { sets: c.ps, reps: c.p }; const H = { sets: c.hs, reps: c.h };
+  const deload = n % 4 === 3; const dl = { sets: deload ? 2 : 3, reps: String(Math.max(3, parseInt(c.p) - 2)) };
+  const day = (name, d, exercises) => ({ name, day: d, dayNote: c.note, exercises });
+  return {
+    id: "hy" + n, label: `SEMANA ${n + 1}`,
+    days: [
+      day("TORSO · FUERZA", "Lunes", [
+        { name: "Bench press", ...P },
+        { name: "Bent-over barbell row", ...P },
+        { name: "Standing barbell press", sets: deload ? 2 : 3, reps: "8" },
+        { name: "Weighted pull-ups (or lat pulldown)", sets: deload ? 2 : 3, reps: "6-8" },
+        { name: "Barbell curls", ...H },
+        { name: "Skull crushers", ...H },
+      ]),
+      day("PIERNA · FUERZA", "Martes", [
+        { name: "Barbell squats", ...P },
+        { name: "Deadlift", ...dl },
+        { name: "Leg press", ...H },
+        { name: "Lying leg curls", ...H },
+        { name: "Standing calf raises", sets: c.hs + 1, reps: "10" },
+        { name: "Leg raise on bars", sets: 3, reps: "12" },
+      ]),
+      day("TORSO · VOLUMEN", "Jueves", [
+        { name: "Incline dumbbell press", sets: c.hs + 1, reps: c.h },
+        { name: "Seated cable rows", sets: c.hs + 1, reps: c.h },
+        { name: "Cable crossovers", sets: c.hs, reps: "15" },
+        { name: "Wide-grip lat pulldown", sets: c.hs, reps: "12" },
+        { name: "Lateral raises with dumbbells", sets: c.hs + 1, reps: "15" },
+        { name: "Incline dumbbell curls", sets: c.hs, reps: "12" },
+        { name: "Triceps pushdowns", sets: c.hs, reps: "12" },
+      ]),
+      day("PIERNA · VOLUMEN", "Viernes", [
+        { name: "Front squats", ...H },
+        { name: "Romanian deadlift", sets: c.hs + 1, reps: c.h },
+        { name: "Walking lunges with dumbbells", sets: c.hs, reps: "12" },
+        { name: "Leg extensions", sets: c.hs, reps: "15" },
+        { name: "Lying leg curls", sets: c.hs, reps: "12" },
+        { name: "Seated calf raises", sets: c.hs + 1, reps: "15" },
+      ]),
+    ],
+  };
+}
+
+const META = {
+  fuerza:      { short: "8 semanas",   long: "Programa 8 semanas",  sub: "Tu tabla",       icon: "🏋️", color: "#2e7d32", soft: "#e8f5e9" },
+  fullbody:    { short: "Full Body",   long: "Full Body 3 días",    sub: "3 días",         icon: "🔁", color: "#1565c0", soft: "#e3f2fd" },
+  hipertrofia: { short: "Fuerza+Masa", long: "Fuerza + Masa (Torso/Pierna)", sub: "4 días · 8 sem", icon: "💪", color: "#b45309", soft: "#fff4e5",
+    info: "Torso/Pierna, 4 días por semana, 8 semanas. Si alguna semana solo puedes ir 3 días, haz los entrenos en orden y el que falte pásalo a la semana siguiente. Descansa 2-3 min en los ejercicios principales y 60-90 s en el resto." },
+};
+
+const BG = "#f6f5f1", CARD = "#ffffff", LINE = "#e2e0d8", TXT = "#1c1c1a", SUB = "#5f5e58", FAINT = "#9a988f";
+
+function save(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+function read(k) { try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } }
+function loadPrograms() {
+  const p = read("gym_programs_v5");
+  const hy = () => [0, 1, 2, 3, 4, 5, 6, 7].map(hyWeek);
+  if (p && p.fuerza && p.fullbody) return p.hipertrofia ? p : { ...p, hipertrofia: hy() };
+  const old = read("gym_prog_v4");
+  return { fuerza: Array.isArray(old) && old.length ? old : PROGRAM, fullbody: [0, 1, 2, 3].map(fbWeek), hipertrofia: hy() };
+}
+function loadVideos() {
+  const v = read("gym_videos_v3");
+  if (v) return v;
+  const out = {}; const old = read("gym_videos_v2") || {};
+  Object.entries(old).forEach(([k, u]) => { if (u) out[k] = [u]; });
+  return out;
+}
+function cleanName(n) { return (n || "").replace(/\(.*?\)/g, "").replace(/⚠️.*/, "").replace(/\s+/g, " ").trim().toLowerCase(); }
 function ytSearch(n) { return "https://www.youtube.com/results?search_query=" + encodeURIComponent(cleanName(n) + " exercise proper form tutorial"); }
+function ytId(url) { if (!url) return null; const m = url.match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/); return m ? m[1] : null; }
+// ── Vídeos propios guardados en el móvil (IndexedDB) ──
+const IDB = {
+  db: null,
+  open() {
+    if (this.db) return Promise.resolve(this.db);
+    return new Promise((res, rej) => {
+      const r = indexedDB.open("gym_media", 1);
+      r.onupgradeneeded = () => { const d = r.result; if (!d.objectStoreNames.contains("clips")) d.createObjectStore("clips", { keyPath: "id" }).createIndex("ex", "ex"); };
+      r.onsuccess = () => { this.db = r.result; res(r.result); };
+      r.onerror = () => rej(r.error);
+    });
+  },
+  async run(mode, fn) {
+    const d = await this.open();
+    return new Promise((res, rej) => {
+      const t = d.transaction("clips", mode); const req = fn(t.objectStore("clips"));
+      t.oncomplete = () => res(req ? req.result : undefined); t.onerror = () => rej(t.error); t.onabort = () => rej(t.error);
+    });
+  },
+  put(clip) { return this.run("readwrite", s => s.put(clip)); },
+  del(id) { return this.run("readwrite", s => s.delete(id)); },
+  byEx(ex) { return this.run("readonly", s => s.index("ex").getAll(ex)); },
+  async counts() {
+    const d = await this.open();
+    return new Promise((res, rej) => {
+      const out = {}; const t = d.transaction("clips"); const req = t.objectStore("clips").index("ex").openKeyCursor();
+      req.onsuccess = () => { const c = req.result; if (c) { out[c.key] = (out[c.key] || 0) + 1; c.continue(); } };
+      t.oncomplete = () => res(out); t.onerror = () => rej(t.error);
+    });
+  },
+};
+function fmtSize(b) { return b > 1e6 ? (b / 1e6).toFixed(0) + " MB" : Math.max(1, Math.round(b / 1e3)) + " KB"; }
 function blankSets(n) { return Array.from({ length: n }, () => ({ kg: "", reps: "", done: false })); }
+function fmtDate(t) { try { return new Date(t).toLocaleDateString("es-ES", { weekday: "short", day: "numeric", month: "short" }); } catch { return ""; } }
 
 function GymPlanner() {
-  const [db, setDb] = useState(loadDb);
-  const [program, setProgram] = useState(() => { try { return JSON.parse(localStorage.getItem("gym_prog_v4")) || PROGRAM; } catch { return PROGRAM; } });
+  const [programs, setPrograms] = useState(loadPrograms);
+  const [db, setDb] = useState(() => read("gymlog_v3") || {});
+  const [videos, setVideos] = useState(loadVideos);
+  const [progId, setProgId] = useState(() => { const p = read("gym_last_prog"); return META[p] ? p : "fuerza"; });
   const [weekIdx, setWeekIdx] = useState(0);
   const [dayIdx, setDayIdx] = useState(0);
   const [tab, setTab] = useState("train");
@@ -273,285 +431,377 @@ function GymPlanner() {
   const [toast, setToast] = useState("");
   const [videoModal, setVideoModal] = useState(null);
   const [videoInput, setVideoInput] = useState("");
-  const [videos, setVideos] = useState(() => { try { return JSON.parse(localStorage.getItem("gym_videos_v2")) || {}; } catch { return {}; } });
+  const [clipCounts, setClipCounts] = useState({});
+  const [clips, setClips] = useState([]);
+  const [saving, setSaving] = useState(false);
+  const [showLinks, setShowLinks] = useState(false);
 
-  useEffect(() => { saveDb(db); }, [db]);
-  useEffect(() => { try { localStorage.setItem("gym_prog_v4", JSON.stringify(program)); } catch {} }, [program]);
-  useEffect(() => { try { localStorage.setItem("gym_videos_v2", JSON.stringify(videos)); } catch {} }, [videos]);
+  function refreshCounts() { IDB.counts().then(setClipCounts).catch(() => {}); }
+  useEffect(() => { refreshCounts(); try { navigator.storage && navigator.storage.persist && navigator.storage.persist(); } catch {} }, []);
+  function loadClips(name) {
+    IDB.byEx(cleanName(name)).then(list => {
+      setClips(prev => { prev.forEach(c => URL.revokeObjectURL(c.url)); return (list || []).sort((a, b) => a.created - b.created).map(c => ({ ...c, url: URL.createObjectURL(c.blob) })); });
+    }).catch(() => setClips([]));
+  }
+  useEffect(() => { if (videoModal) loadClips(videoModal.name); else setClips(prev => { prev.forEach(c => URL.revokeObjectURL(c.url)); return []; }); }, [videoModal]);
+  async function uploadClips(e) {
+    const files = Array.from(e.target.files || []); e.target.value = "";
+    if (!files.length || !videoModal) return;
+    const big = files.find(f => f.size > 300e6);
+    if (big && !confirm("Este vídeo pesa " + fmtSize(big.size) + ". Ocupará mucho espacio en el móvil. ¿Guardarlo igualmente?")) return;
+    setSaving(true);
+    const ex = cleanName(videoModal.name); let ok = 0;
+    for (const f of files) {
+      const clip = { id: Date.now() + "_" + Math.random().toString(36).slice(2), ex, name: f.name, type: f.type, size: f.size, created: Date.now(), blob: f };
+      try { await IDB.put(clip); ok++; }
+      catch { try { await IDB.put({ ...clip, blob: new Blob([await f.arrayBuffer()], { type: f.type }) }); ok++; } catch {} }
+    }
+    setSaving(false); loadClips(videoModal.name); refreshCounts();
+    showToast(ok ? "🎬 Vídeo guardado" : "No se pudo guardar el vídeo (¿falta espacio?)");
+  }
+  async function deleteClip(id) {
+    if (!confirm("¿Borrar este vídeo de la app? (En tu galería seguirá estando)")) return;
+    try { await IDB.del(id); } catch {}
+    loadClips(videoModal.name); refreshCounts();
+  }
 
-  function showToast(msg) { setToast(msg); setTimeout(() => setToast(""), 1800); }
-  function videoKey(wi, di, ei) { const ex = program[wi]?.days[di]?.exercises[ei]; return cleanName(ex?.name || ""); }
-  function openVideoModal(wi, di, ei, name) { const key = videoKey(wi, di, ei); setVideoInput(videos[key] || ""); setVideoModal({ wi, di, ei, name, key }); }
-  function saveVideo() { if (!videoModal) return; setVideos(prev => ({ ...prev, [videoModal.key]: videoInput.trim() })); setVideoModal(null); showToast("🎬 Vídeo guardado"); }
-  function deleteVideo() { if (!videoModal) return; setVideos(prev => { const n = { ...prev }; delete n[videoModal.key]; return n; }); setVideoModal(null); showToast("Vídeo eliminado"); }
-  function getYouTubeId(url) { if (!url) return null; const m = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&?/\s]{11})/); return m ? m[1] : null; }
+  useEffect(() => { save("gymlog_v3", db); }, [db]);
+  useEffect(() => { save("gym_programs_v5", programs); }, [programs]);
+  useEffect(() => { save("gym_videos_v3", videos); }, [videos]);
+  useEffect(() => { save("gym_last_prog", progId); }, [progId]);
 
+  const meta = META[progId]; const C = meta.color; const SOFT = meta.soft;
+  const program = programs[progId] || [];
+  useEffect(() => { if (weekIdx >= program.length) setWeekIdx(Math.max(0, program.length - 1)); }, [program.length]);
   const week = program[weekIdx];
+  useEffect(() => { if (week && dayIdx >= week.days.length) setDayIdx(Math.max(0, week.days.length - 1)); }, [week && week.days.length]);
   const dayData = week?.days[dayIdx];
-  const sessionKey = `w${weekIdx}_d${dayIdx}`;
+  const sessionKey = `${progId === "fuerza" ? "" : progId + "_"}w${weekIdx}_d${dayIdx}`;
   const session = db[sessionKey] || {};
 
-  function getSets(exIdx) { const ex = dayData?.exercises[exIdx]; if (!ex) return []; return session[`ex${exIdx}`] || blankSets(ex.sets); }
-  function updateSet(exIdx, setIdx, field, val) { setDb(prev => { const key = `ex${exIdx}`; const sets = prev[sessionKey]?.[key] || blankSets(dayData.exercises[exIdx].sets); const next = sets.map((s, i) => i === setIdx ? { ...s, [field]: val } : s); return { ...prev, [sessionKey]: { ...prev[sessionKey], [key]: next } }; }); }
-  function addSet(exIdx) { setDb(prev => { const key = `ex${exIdx}`; const sets = prev[sessionKey]?.[key] || blankSets(dayData.exercises[exIdx].sets); return { ...prev, [sessionKey]: { ...prev[sessionKey], [key]: [...sets, { kg: "", reps: "", done: false }] } }; }); }
-  function removeLastSet(exIdx) { setDb(prev => { const key = `ex${exIdx}`; const sets = (prev[sessionKey]?.[key] || blankSets(dayData.exercises[exIdx].sets)).slice(0, -1); if (!sets.length) return prev; return { ...prev, [sessionKey]: { ...prev[sessionKey], [key]: sets } }; }); }
-  function markDay() { setDb(prev => ({ ...prev, [sessionKey]: { ...prev[sessionKey], attended: !prev[sessionKey]?.attended } })); showToast(session.attended ? "Desmarcado" : "✅ ¡Entreno registrado!"); }
-  function setNote(note) { setDb(prev => ({ ...prev, [sessionKey]: { ...prev[sessionKey], note } })); }
+  function showToast(m) { setToast(m); setTimeout(() => setToast(""), 1900); }
+  function switchProgram(id) { setProgId(id); setWeekIdx(0); setDayIdx(0); setEditingWeek(null); }
 
-  function updateExName(wi, di, ei, val) { setProgram(prev => { const p = JSON.parse(JSON.stringify(prev)); p[wi].days[di].exercises[ei].name = val; return p; }); }
-  function updateDayName(wi, di, val) { setProgram(prev => { const p = JSON.parse(JSON.stringify(prev)); p[wi].days[di].name = val; return p; }); }
-  function updateWeekLabel(wi, val) { setProgram(prev => { const p = JSON.parse(JSON.stringify(prev)); p[wi].label = val; return p; }); }
-  function addExercise(wi, di) { setProgram(prev => { const p = JSON.parse(JSON.stringify(prev)); p[wi].days[di].exercises.push({ name: "Nuevo ejercicio", sets: 3, reps: "10" }); return p; }); }
-  function removeExercise(wi, di, ei) { setProgram(prev => { const p = JSON.parse(JSON.stringify(prev)); p[wi].days[di].exercises.splice(ei, 1); return p; }); }
-  function addDay(wi) { setProgram(prev => { const p = JSON.parse(JSON.stringify(prev)); p[wi].days.push({ name: "NUEVO DÍA", day: "—", exercises: [{ name: "Ejercicio 1", sets: 3, reps: "10" }] }); return p; }); }
-  function removeDay(wi, di) { setProgram(prev => { const p = JSON.parse(JSON.stringify(prev)); p[wi].days.splice(di, 1); return p; }); }
-  function addWeek() { setProgram(prev => [...prev, { id: Date.now(), label: `SEMANA ${prev.length + 1}`, days: [{ name: "DÍA 1", day: "Lunes", exercises: [{ name: "Ejercicio 1", sets: 3, reps: "10" }] }] }]); }
-  function removeWeek(wi) { if (program.length <= 1) return showToast("No puedes eliminar la única semana"); setProgram(prev => prev.filter((_, i) => i !== wi)); if (weekIdx >= wi) setWeekIdx(Math.max(0, weekIdx - 1)); }
+  // ── Sesión ──
+  function getSets(ei) { const ex = dayData?.exercises[ei]; if (!ex) return []; return session[`ex${ei}`] || blankSets(ex.sets); }
+  function patchSets(ei, fn) {
+    setDb(prev => { const key = `ex${ei}`; const sets = prev[sessionKey]?.[key] || blankSets(dayData.exercises[ei].sets); const next = fn(sets); if (!next) return prev; return { ...prev, [sessionKey]: { ...prev[sessionKey], [key]: next } }; });
+  }
+  const updateSet = (ei, si, f, v) => patchSets(ei, s => s.map((x, i) => i === si ? { ...x, [f]: v } : x));
+  const addSet = ei => patchSets(ei, s => [...s, { kg: "", reps: "", done: false }]);
+  const removeLastSet = ei => patchSets(ei, s => s.length > 1 ? s.slice(0, -1) : null);
+  function markDay() {
+    const was = !!session.attended;
+    setDb(prev => ({ ...prev, [sessionKey]: { ...prev[sessionKey], attended: !was, attendedAt: !was ? Date.now() : prev[sessionKey]?.attendedAt } }));
+    showToast(was ? "Desmarcado" : "✅ ¡Entreno registrado!");
+  }
+  const setNote = note => setDb(prev => ({ ...prev, [sessionKey]: { ...prev[sessionKey], note } }));
 
+  // ── Editar programa ──
+  function edit(fn) { setPrograms(prev => { const p = JSON.parse(JSON.stringify(prev)); fn(p[progId]); return p; }); }
+  const updateEx = (wi, di, ei, f, v) => edit(p => { p[wi].days[di].exercises[ei][f] = f === "sets" ? Math.max(1, parseInt(v) || 1) : v; });
+  const updateDay = (wi, di, f, v) => edit(p => { p[wi].days[di][f] = v; });
+  const updateWeekLabel = (wi, v) => edit(p => { p[wi].label = v; });
+  const addExercise = (wi, di) => edit(p => { p[wi].days[di].exercises.push({ name: "Nuevo ejercicio", sets: 3, reps: "10" }); });
+  const removeExercise = (wi, di, ei) => edit(p => { p[wi].days[di].exercises.splice(ei, 1); });
+  const addDay = wi => edit(p => { p[wi].days.push({ name: "NUEVO DÍA", day: "Día", exercises: [{ name: "Ejercicio 1", sets: 3, reps: "10" }] }); });
+  const removeDay = (wi, di) => edit(p => { if (p[wi].days.length > 1) p[wi].days.splice(di, 1); });
+  const addWeek = () => edit(p => { p.push({ id: Date.now(), label: `SEMANA ${p.length + 1}`, days: [{ name: "DÍA 1", day: "Lunes", exercises: [{ name: "Ejercicio 1", sets: 3, reps: "10" }] }] }); });
+  function removeWeek(wi) { if (program.length <= 1) return showToast("No puedes borrar la única semana"); if (!confirm("¿Borrar " + program[wi].label + "?")) return; edit(p => { p.splice(wi, 1); }); }
+
+  // ── Vídeos ──
+  const vKey = n => cleanName(n);
+  function openVideos(name) { setVideoInput(""); setVideoModal({ name }); }
+  function addVideo() {
+    const url = videoInput.trim();
+    if (!/^https?:\/\//i.test(url)) return showToast("Pega un enlace que empiece por https://");
+    const k = vKey(videoModal.name);
+    setVideos(prev => ({ ...prev, [k]: [...(prev[k] || []), url] }));
+    setVideoInput(""); showToast("🎬 Vídeo añadido");
+  }
+  function removeVideo(i) {
+    const k = vKey(videoModal.name);
+    setVideos(prev => { const list = (prev[k] || []).filter((_, j) => j !== i); const n = { ...prev }; if (list.length) n[k] = list; else delete n[k]; return n; });
+  }
+  async function pasteVideo() { try { const t = await navigator.clipboard.readText(); if (t) setVideoInput(t.trim()); } catch { showToast("Mantén pulsado el campo y elige Pegar"); } }
+
+  // ── Historial ──
   function getLog() {
-    return Object.entries(db).filter(([k, v]) => v.attended).map(([k, v]) => {
-      const m = k.match(/w(\d+)_d(\d+)/); if (!m) return null;
-      const [, wi, di] = m; const w = program[wi]; const d = w?.days[di];
-      return { key: k, weekLabel: w?.label || `Semana ${wi}`, dayName: d?.name || `Día ${di}`, note: v.note };
-    }).filter(Boolean).reverse();
+    return Object.entries(db).filter(([, v]) => v && v.attended).map(([k, v]) => {
+      const m = k.match(/^(?:([a-z]+)_)?w(\d+)_d(\d+)$/); if (!m) return null;
+      const pid = m[1] || "fuerza"; const w = programs[pid]?.[+m[2]]; const d = w?.days[+m[3]];
+      return { key: k, pid, weekLabel: w?.label || `Semana ${+m[2] + 1}`, dayName: d?.name || "Día", note: v.note, at: v.attendedAt || 0 };
+    }).filter(Boolean).sort((a, b) => b.at - a.at);
   }
 
   const attended = !!session.attended;
-  const completedSets = dayData?.exercises.reduce((acc, _, ei) => acc + getSets(ei).filter(s => s.done).length, 0) || 0;
-  const totalSets = dayData?.exercises.reduce((a, ex) => a + ex.sets, 0) || 0;
-  const progress = totalSets ? Math.round((completedSets / totalSets) * 100) : 0;
+  const completedSets = dayData?.exercises.reduce((a, _, ei) => a + getSets(ei).filter(s => s.done).length, 0) || 0;
+  const totalSets = dayData?.exercises.reduce((a, _, ei) => a + getSets(ei).length, 0) || 0;
+  const progress = totalSets ? Math.round(completedSets / totalSets * 100) : 0;
 
-  const S = {
-    app: { minHeight: "100vh", background: "#0f0f0f", color: "#f0ede6", fontFamily: "'Courier New', monospace", paddingBottom: 90 },
-    header: { background: "#0f0f0f", borderBottom: "1px solid #222", padding: "env(safe-area-inset-top, 18px) 16px 0 16px", paddingTop: "max(env(safe-area-inset-top), 18px)", position: "sticky", top: 0, zIndex: 10 },
-  };
+  const chip = (active, color) => ({ flex: "0 0 auto", padding: "10px 16px", borderRadius: 22, border: `2px solid ${active ? color : LINE}`, background: active ? color : CARD, color: active ? "#fff" : TXT, fontSize: 15, fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" });
+  const inp = { background: "#fbfaf7", border: `1.5px solid ${LINE}`, borderRadius: 10, color: TXT, fontSize: 20, fontWeight: 700, padding: "10px 6px", textAlign: "center", width: "100%", height: 50 };
+  const smallBtn = { background: CARD, border: `1.5px solid ${LINE}`, borderRadius: 10, color: SUB, fontSize: 14, fontWeight: 600, padding: "8px 14px", cursor: "pointer" };
+  const editInp = { background: "#fbfaf7", border: `1.5px solid ${LINE}`, borderRadius: 8, color: TXT, fontSize: 16, padding: "8px 10px" };
+  const log = getLog();
+  const modalVideos = videoModal ? (videos[vKey(videoModal.name)] || []) : [];
 
   return (
-    <div style={S.app}>
-      <div style={S.header}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 14 }}>
-          <div>
-            <div style={{ fontSize: 10, letterSpacing: 4, color: "#c8ff00", marginBottom: 2 }}>TRAINING LOG</div>
-            <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: -1 }}>GYM TRACKER</div>
-          </div>
-          <div style={{ textAlign: "right" }}>
-            <div style={{ fontSize: 10, color: "#555", letterSpacing: 2 }}>PROGRESO HOY</div>
-            <div style={{ fontSize: 20, fontWeight: 700, color: progress === 100 ? "#c8ff00" : "#f0ede6" }}>{progress}%</div>
-          </div>
+    <div style={{ minHeight: "100vh", background: BG, color: TXT, paddingBottom: 100 }}>
+      {/* CABECERA */}
+      <div style={{ background: BG, borderBottom: `1px solid ${LINE}`, padding: "0 16px", paddingTop: "max(env(safe-area-inset-top), 16px)", position: "sticky", top: 0, zIndex: 10 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+          <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: -0.5 }}>Gym Tracker</div>
+          {tab === "train" && dayData && (
+            <div style={{ textAlign: "right" }}>
+              <div style={{ fontSize: 12, color: SUB, fontWeight: 700, letterSpacing: 0.5 }}>PROGRESO</div>
+              <div style={{ fontSize: 26, fontWeight: 800, color: C, lineHeight: 1 }}>{progress}%</div>
+            </div>
+          )}
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6, marginBottom: 10 }}>
+          {Object.entries(META).map(([id, m]) => (
+            <button key={id} onClick={() => switchProgram(id)} style={{ padding: "9px 6px", borderRadius: 14, border: `2px solid ${progId === id ? m.color : LINE}`, background: progId === id ? m.soft : CARD, color: progId === id ? m.color : SUB, textAlign: "center", cursor: "pointer" }}>
+              <div style={{ fontSize: 18 }}>{m.icon}</div>
+              <div style={{ fontSize: 14, fontWeight: 800, whiteSpace: "nowrap" }}>{m.short}</div>
+              <div style={{ fontSize: 11, marginTop: 1, fontWeight: 600, opacity: 0.85 }}>{m.sub}</div>
+            </button>
+          ))}
         </div>
         <div style={{ display: "flex" }}>
-          {[["train","ENTRENO"],["weeks","PROGRAMA"],["log","HISTORIAL"]].map(([key, label]) => (
-            <button key={key} onClick={() => setTab(key)} style={{ flex: 1, background: "none", border: "none", borderBottom: `2px solid ${tab===key?"#c8ff00":"transparent"}`, color: tab===key?"#c8ff00":"#444", fontFamily: "inherit", fontSize: 10, letterSpacing: 2, padding: "8px 0 10px", cursor: "pointer" }}>{label}</button>
+          {[["train", "Entreno"], ["weeks", "Programa"], ["log", "Historial"]].map(([k, l]) => (
+            <button key={k} onClick={() => setTab(k)} style={{ flex: 1, background: "none", border: "none", borderBottom: `3px solid ${tab === k ? C : "transparent"}`, color: tab === k ? C : SUB, fontSize: 16, fontWeight: 700, padding: "10px 0 12px", cursor: "pointer" }}>{l}</button>
           ))}
         </div>
       </div>
 
-      <div style={{ padding: "0 16px" }}>
-
+      <div style={{ padding: "0 16px", maxWidth: 640, margin: "0 auto" }}>
+        {/* ENTRENO */}
         {tab === "train" && (
           <>
-            <div style={{ marginTop: 16 }}>
-              <div style={{ fontSize: 9, color: "#555", letterSpacing: 3, marginBottom: 8 }}>SEMANA</div>
-              <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4 }}>
-                {program.map((w, wi) => (
-                  <button key={wi} onClick={() => { setWeekIdx(wi); setDayIdx(0); }} style={{ flex: "0 0 auto", padding: "7px 14px", borderRadius: 20, background: weekIdx===wi?"#c8ff00":"#181818", color: weekIdx===wi?"#0f0f0f":"#555", border: "none", fontFamily: "inherit", fontSize: 10, fontWeight: 700, letterSpacing: 1, cursor: "pointer", whiteSpace: "nowrap" }}>{w.label}</button>
-                ))}
-              </div>
+            <div style={{ marginTop: 18, fontSize: 13, color: SUB, fontWeight: 700, letterSpacing: 0.5, marginBottom: 8 }}>SEMANA</div>
+            <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4 }}>
+              {program.map((w, wi) => <button key={wi} onClick={() => { setWeekIdx(wi); setDayIdx(0); }} style={chip(weekIdx === wi, C)}>{w.label}</button>)}
             </div>
 
-            <div style={{ marginTop: 14 }}>
-              <div style={{ fontSize: 9, color: "#555", letterSpacing: 3, marginBottom: 8 }}>DÍA</div>
-              <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4 }}>
-                {week?.days.map((d, di) => {
-                  const sk = `w${weekIdx}_d${di}`; const done = db[sk]?.attended;
-                  return (
-                    <button key={di} onClick={() => setDayIdx(di)} style={{ flex: "0 0 auto", padding: "7px 14px", borderRadius: 20, background: dayIdx===di?"#f0ede6":done?"#1a2200":"#181818", color: dayIdx===di?"#0f0f0f":done?"#c8ff00":"#555", border: `1px solid ${dayIdx===di?"transparent":done?"#c8ff0033":"#222"}`, fontFamily: "inherit", fontSize: 10, fontWeight: 700, letterSpacing: 1, cursor: "pointer", whiteSpace: "nowrap" }}>
-                      {done?"✓ ":""}{d.name.split("·")[0].trim()}
-                    </button>
-                  );
-                })}
-              </div>
+            {meta.info && weekIdx === 0 && <div style={{ marginTop: 12, background: SOFT, color: C, borderRadius: 12, padding: "12px 14px", fontSize: 14, fontWeight: 600, lineHeight: 1.45 }}>ℹ️ {meta.info}</div>}
+            <div style={{ marginTop: 16, fontSize: 13, color: SUB, fontWeight: 700, letterSpacing: 0.5, marginBottom: 8 }}>DÍA</div>
+            <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4 }}>
+              {week?.days.map((d, di) => {
+                const sk = `${progId === "fuerza" ? "" : progId + "_"}w${weekIdx}_d${di}`; const done = db[sk]?.attended; const act = dayIdx === di;
+                return (
+                  <button key={di} onClick={() => setDayIdx(di)} style={{ flex: "0 0 auto", padding: "8px 16px", borderRadius: 14, border: `2px solid ${act ? TXT : done ? C : LINE}`, background: act ? TXT : done ? SOFT : CARD, color: act ? "#fff" : TXT, cursor: "pointer", textAlign: "left" }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, opacity: 0.75 }}>{done ? "✓ " : ""}{d.day}</div>
+                    <div style={{ fontSize: 15, fontWeight: 800, whiteSpace: "nowrap" }}>{d.name.split("·")[0].trim()}</div>
+                  </button>
+                );
+              })}
             </div>
 
             {dayData && (
               <>
-                <div style={{ marginTop: 20, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div style={{ marginTop: 22, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
                   <div>
-                    <div style={{ fontSize: 10, color: "#555", letterSpacing: 2 }}>{dayData.day.toUpperCase()}</div>
-                    <div style={{ fontSize: 17, fontWeight: 900, marginTop: 2, letterSpacing: -0.5 }}>{dayData.name}</div>
+                    <div style={{ fontSize: 14, color: SUB, fontWeight: 700 }}>{dayData.day}</div>
+                    <div style={{ fontSize: 22, fontWeight: 800, marginTop: 2, lineHeight: 1.2 }}>{dayData.name}</div>
                   </div>
-                  <button onClick={markDay} style={{ background: attended?"#c8ff00":"transparent", color: attended?"#0f0f0f":"#c8ff00", border: "2px solid #c8ff00", borderRadius: 8, padding: "8px 16px", fontFamily: "inherit", fontSize: 11, fontWeight: 900, letterSpacing: 1, cursor: "pointer" }}>{attended?"✓ FUI":"MARCAR"}</button>
+                  <button onClick={markDay} style={{ flex: "0 0 auto", background: attended ? C : CARD, color: attended ? "#fff" : C, border: `2px solid ${C}`, borderRadius: 12, padding: "12px 16px", fontSize: 15, fontWeight: 800, cursor: "pointer" }}>{attended ? "✓ Hecho" : "Marcar hecho"}</button>
                 </div>
+                {dayData.dayNote && <div style={{ marginTop: 12, background: SOFT, color: C, borderRadius: 12, padding: "12px 14px", fontSize: 15, fontWeight: 600, lineHeight: 1.4 }}>💡 {dayData.dayNote}</div>}
 
-                <div style={{ marginTop: 12, height: 3, background: "#222", borderRadius: 2 }}>
-                  <div style={{ height: "100%", width: `${progress}%`, background: "#c8ff00", borderRadius: 2, transition: "width .3s" }} />
+                <div style={{ marginTop: 14, height: 8, background: LINE, borderRadius: 4 }}>
+                  <div style={{ height: "100%", width: `${progress}%`, background: C, borderRadius: 4, transition: "width .3s" }} />
                 </div>
-                <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, fontSize: 9, color: "#444", letterSpacing: 1 }}>
-                  <span>{completedSets} SERIES COMPLETADAS</span><span>{totalSets} TOTAL</span>
-                </div>
+                <div style={{ marginTop: 6, fontSize: 14, color: SUB, fontWeight: 600 }}>{completedSets} de {totalSets} series completadas</div>
 
                 {dayData.exercises.map((ex, ei) => {
-                  const sets = getSets(ei);
-                  const exDone = sets.length > 0 && sets.every(s => s.done);
-                  const vk = videoKey(weekIdx, dayIdx, ei);
-                  const vurl = videos[vk];
-                  const ytId = getYouTubeId(vurl);
+                  const sets = getSets(ei); const exDone = sets.length > 0 && sets.every(s => s.done);
+                  const nv = (videos[vKey(ex.name)] || []).length + (clipCounts[vKey(ex.name)] || 0);
                   return (
-                    <div key={ei} style={{ marginTop: 16, background: "#141414", borderRadius: 12, border: `1px solid ${exDone?"#c8ff0033":"#1e1e1e"}` }}>
-                      <div style={{ padding: "12px 14px 10px", borderBottom: "1px solid #1e1e1e", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div key={ei} style={{ marginTop: 16, background: CARD, borderRadius: 16, border: `2px solid ${exDone ? C : LINE}`, boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+                      <div style={{ padding: "14px 14px 12px", borderBottom: `1px solid ${LINE}`, display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
                         <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 12, fontWeight: 700 }}>{ex.name}</div>
-                          <div style={{ fontSize: 10, color: "#555", marginTop: 2, letterSpacing: 1 }}>{ex.sets} × {ex.reps}</div>
-                          {ex.note && <div style={{ fontSize: 10, color: "#c8ff00aa", marginTop: 3 }}>📝 {ex.note}</div>}
+                          <div style={{ fontSize: 18, fontWeight: 800, lineHeight: 1.25 }}>{exDone ? "✅ " : ""}{ex.name}</div>
+                          <div style={{ display: "inline-block", marginTop: 8, background: SOFT, color: C, borderRadius: 8, padding: "4px 10px", fontSize: 16, fontWeight: 800 }}>{ex.sets} × {ex.reps}</div>
+                          {ex.note && <div style={{ marginTop: 8, fontSize: 15, color: SUB, fontWeight: 500 }}>📝 {ex.note}</div>}
                         </div>
-                        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                          {exDone && <span style={{ color: "#c8ff00", fontSize: 16 }}>✓</span>}
-                          <button onClick={() => openVideoModal(weekIdx, dayIdx, ei, ex.name)} style={{ background: vurl?"#c8ff0015":"transparent", border: `1px solid ${vurl?"#c8ff0055":"#2a2a2a"}`, borderRadius: 7, padding: "5px 9px", cursor: "pointer", display: "flex", alignItems: "center", gap: 4 }}>
-                            {ytId ? <img src={`https://img.youtube.com/vi/${ytId}/default.jpg`} style={{ width: 28, height: 20, borderRadius: 3, objectFit: "cover" }} alt="" /> : <span style={{ fontSize: 14 }}>🎬</span>}
-                            <span style={{ fontSize: 9, color: vurl?"#c8ff00":"#444", letterSpacing: 1, fontFamily: "inherit" }}>{vurl?"VER":"VIDEO"}</span>
-                          </button>
-                        </div>
+                        <button onClick={() => openVideos(ex.name)} style={{ flex: "0 0 auto", background: nv ? SOFT : CARD, border: `1.5px solid ${nv ? C : LINE}`, borderRadius: 12, padding: "8px 12px", cursor: "pointer", color: nv ? C : SUB, fontSize: 14, fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}>
+                          <span style={{ fontSize: 18 }}>🎬</span>{nv ? nv : "Vídeo"}
+                        </button>
                       </div>
 
-                      <div style={{ padding: "6px 14px 0" }}>
-                        <div style={{ display: "grid", gridTemplateColumns: "22px 1fr 1fr 30px", gap: 6, fontSize: 9, color: "#444", letterSpacing: 2, marginBottom: 4 }}>
-                          <span>#</span><span>KG</span><span>REPS</span><span></span>
+                      <div style={{ padding: "10px 14px 0" }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "32px 1fr 1fr 50px", gap: 8, fontSize: 13, color: SUB, fontWeight: 700, marginBottom: 6 }}>
+                          <span>Serie</span><span style={{ textAlign: "center" }}>Kg</span><span style={{ textAlign: "center" }}>Reps</span><span></span>
                         </div>
                         {sets.map((s, si) => (
-                          <div key={si} style={{ display: "grid", gridTemplateColumns: "22px 1fr 1fr 30px", gap: 6, marginBottom: 6, alignItems: "center", background: s.done?"#0d1900":"transparent", borderRadius: 6, padding: "2px 0" }}>
-                            <span style={{ fontSize: 11, color: "#444", fontWeight: 700, paddingLeft: 2 }}>{si+1}</span>
-                            <input type="number" placeholder="—" value={s.kg} onChange={e => updateSet(ei, si, "kg", e.target.value)}
-                              style={{ background: "#0f0f0f", border: "1px solid #222", borderRadius: 6, color: "#c8ff00", fontFamily: "inherit", fontSize: 15, padding: "8px 6px", textAlign: "center", outline: "none", width: "100%", boxSizing: "border-box" }} />
-                            <input type="number" placeholder="—" value={s.reps} onChange={e => updateSet(ei, si, "reps", e.target.value)}
-                              style={{ background: "#0f0f0f", border: "1px solid #222", borderRadius: 6, color: "#f0ede6", fontFamily: "inherit", fontSize: 15, padding: "8px 6px", textAlign: "center", outline: "none", width: "100%", boxSizing: "border-box" }} />
-                            <button onClick={() => updateSet(ei, si, "done", !s.done)} style={{ width: 30, height: 34, borderRadius: 6, border: "none", background: s.done?"#c8ff00":"#1e1e1e", color: s.done?"#0f0f0f":"#444", cursor: "pointer", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center" }}>✓</button>
+                          <div key={si} style={{ display: "grid", gridTemplateColumns: "32px 1fr 1fr 50px", gap: 8, marginBottom: 8, alignItems: "center" }}>
+                            <span style={{ fontSize: 18, color: SUB, fontWeight: 800, textAlign: "center" }}>{si + 1}</span>
+                            <input type="text" inputMode="decimal" placeholder="–" value={s.kg} onChange={e => updateSet(ei, si, "kg", e.target.value)} style={{ ...inp, background: s.done ? SOFT : inp.background }} />
+                            <input type="text" inputMode="numeric" placeholder="–" value={s.reps} onChange={e => updateSet(ei, si, "reps", e.target.value)} style={{ ...inp, background: s.done ? SOFT : inp.background }} />
+                            <button onClick={() => updateSet(ei, si, "done", !s.done)} style={{ width: 50, height: 50, borderRadius: 12, border: `2px solid ${s.done ? C : LINE}`, background: s.done ? C : CARD, color: s.done ? "#fff" : FAINT, cursor: "pointer", fontSize: 22, fontWeight: 800 }}>✓</button>
                           </div>
                         ))}
                       </div>
-                      <div style={{ display: "flex", gap: 6, padding: "6px 14px 12px" }}>
-                        <button onClick={() => addSet(ei)} style={{ background: "none", border: "1px dashed #2a2a2a", borderRadius: 6, color: "#444", fontFamily: "inherit", fontSize: 9, letterSpacing: 2, padding: "5px 10px", cursor: "pointer" }}>+ SERIE</button>
-                        {sets.length > 1 && <button onClick={() => removeLastSet(ei)} style={{ background: "none", border: "1px solid #1e1e1e", borderRadius: 6, color: "#333", fontFamily: "inherit", fontSize: 9, padding: "5px 10px", cursor: "pointer" }}>− QUITAR</button>}
+                      <div style={{ display: "flex", gap: 8, padding: "4px 14px 14px" }}>
+                        <button onClick={() => addSet(ei)} style={smallBtn}>+ Serie</button>
+                        {sets.length > 1 && <button onClick={() => removeLastSet(ei)} style={smallBtn}>− Quitar</button>}
                       </div>
                     </div>
                   );
                 })}
 
-                <textarea placeholder="Notas del día..." value={session.note||""} onChange={e => setNote(e.target.value)} rows={2}
-                  style={{ marginTop: 14, width: "100%", background: "#141414", border: "1px solid #1e1e1e", borderRadius: 10, color: "#777", fontFamily: "inherit", fontSize: 12, padding: "11px 13px", resize: "none", outline: "none", boxSizing: "border-box" }} />
+                <div style={{ marginTop: 18, fontSize: 13, color: SUB, fontWeight: 700, marginBottom: 6 }}>NOTAS DEL DÍA</div>
+                <textarea placeholder="Sensaciones, fatiga, récords..." value={session.note || ""} onChange={e => setNote(e.target.value)} rows={3}
+                  style={{ width: "100%", background: CARD, border: `1.5px solid ${LINE}`, borderRadius: 14, color: TXT, fontSize: 16, padding: "12px 14px", resize: "none" }} />
               </>
             )}
           </>
         )}
 
+        {/* PROGRAMA */}
         {tab === "weeks" && (
-          <div style={{ marginTop: 16 }}>
-            {program.map((w, wi) => (
-              <div key={wi} style={{ marginBottom: 20, background: "#141414", borderRadius: 12, border: "1px solid #1e1e1e", overflow: "hidden" }}>
-                <div style={{ padding: "12px 14px", borderBottom: "1px solid #1e1e1e", display: "flex", alignItems: "center", gap: 8, background: "#181818" }}>
-                  {editingWeek===wi ? (
-                    <input value={w.label} onChange={e => updateWeekLabel(wi, e.target.value)} style={{ flex: 1, background: "transparent", border: "1px solid #c8ff0055", borderRadius: 4, color: "#c8ff00", fontFamily: "inherit", fontSize: 13, fontWeight: 900, padding: "3px 8px" }} />
-                  ) : (
-                    <span style={{ flex: 1, fontSize: 13, fontWeight: 900, color: "#c8ff00", letterSpacing: 1 }}>{w.label}</span>
-                  )}
-                  <button onClick={() => setEditingWeek(editingWeek===wi?null:wi)} style={{ background: "none", border: "none", color: editingWeek===wi?"#c8ff00":"#444", cursor: "pointer", fontSize: 13, padding: "2px 6px" }}>{editingWeek===wi?"✓":"✏"}</button>
-                  <button onClick={() => removeWeek(wi)} style={{ background: "none", border: "none", color: "#442222", cursor: "pointer", fontSize: 13, padding: "2px 6px" }}>✕</button>
-                </div>
-                {w.days.map((d, di) => (
-                  <div key={di} style={{ borderBottom: "1px solid #1a1a1a" }}>
-                    <div style={{ padding: "10px 14px 6px", display: "flex", alignItems: "center", gap: 6 }}>
-                      {editingWeek===wi ? (
-                        <input value={d.name} onChange={e => updateDayName(wi, di, e.target.value)} style={{ flex: 1, background: "transparent", border: "1px solid #333", borderRadius: 4, color: "#f0ede6", fontFamily: "inherit", fontSize: 11, fontWeight: 700, padding: "2px 6px" }} />
-                      ) : (
-                        <span style={{ flex: 1, fontSize: 11, fontWeight: 700, color: "#f0ede6", letterSpacing: 1 }}>{d.day} — {d.name}</span>
-                      )}
-                      {editingWeek===wi && <button onClick={() => removeDay(wi, di)} style={{ background: "none", border: "none", color: "#442222", cursor: "pointer", fontSize: 11 }}>✕ día</button>}
-                    </div>
-                    {d.exercises.map((ex, ei) => (
-                      <div key={ei} style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 14px 4px 22px" }}>
-                        <span style={{ fontSize: 10, color: "#444", minWidth: 8 }}>·</span>
-                        {editingWeek===wi ? (
-                          <>
-                            <input value={ex.name} onChange={e => updateExName(wi, di, ei, e.target.value)} style={{ flex: 1, background: "transparent", border: "1px solid #222", borderRadius: 4, color: "#888", fontFamily: "inherit", fontSize: 11, padding: "3px 6px" }} />
-                            <span style={{ fontSize: 10, color: "#444", whiteSpace: "nowrap" }}>{ex.sets}×{ex.reps}</span>
-                            <button onClick={() => removeExercise(wi, di, ei)} style={{ background: "none", border: "none", color: "#442222", cursor: "pointer", fontSize: 11, padding: "0 2px" }}>✕</button>
-                          </>
-                        ) : (
-                          <>
-                            <span style={{ flex: 1, fontSize: 11, color: "#777" }}>{ex.name}</span>
-                            <span style={{ fontSize: 10, color: "#444", whiteSpace: "nowrap" }}>{ex.sets}×{ex.reps}</span>
-                          </>
-                        )}
-                      </div>
-                    ))}
-                    {editingWeek===wi && <button onClick={() => addExercise(wi, di)} style={{ margin: "4px 14px 8px 30px", background: "none", border: "1px dashed #2a2a2a", borderRadius: 5, color: "#444", fontFamily: "inherit", fontSize: 9, letterSpacing: 2, padding: "4px 10px", cursor: "pointer" }}>+ EJERCICIO</button>}
+          <div style={{ marginTop: 18 }}>
+            <div style={{ background: SOFT, color: C, borderRadius: 12, padding: "12px 14px", fontSize: 15, fontWeight: 700, marginBottom: 16 }}>
+              {meta.icon} Estás viendo: {meta.long}. Pulsa ✏️ en una semana para editarla.
+            </div>
+            {program.map((w, wi) => {
+              const ed = editingWeek === wi;
+              return (
+                <div key={wi} style={{ marginBottom: 16, background: CARD, borderRadius: 16, border: `1.5px solid ${ed ? C : LINE}`, overflow: "hidden" }}>
+                  <div style={{ padding: "12px 14px", borderBottom: `1px solid ${LINE}`, display: "flex", alignItems: "center", gap: 8, background: SOFT }}>
+                    {ed ? <input value={w.label} onChange={e => updateWeekLabel(wi, e.target.value)} style={{ ...editInp, flex: 1, fontWeight: 800, color: C }} />
+                        : <span style={{ flex: 1, fontSize: 17, fontWeight: 800, color: C }}>{w.label}</span>}
+                    <button onClick={() => setEditingWeek(ed ? null : wi)} style={{ ...smallBtn, color: ed ? "#fff" : SUB, background: ed ? C : CARD, borderColor: ed ? C : LINE }}>{ed ? "✓ Listo" : "✏️"}</button>
+                    <button onClick={() => removeWeek(wi)} style={{ ...smallBtn, color: "#c62828" }}>🗑</button>
                   </div>
-                ))}
-                {editingWeek===wi && <button onClick={() => addDay(wi)} style={{ margin: "8px 14px", background: "none", border: "1px dashed #2a2a2a", borderRadius: 6, color: "#555", fontFamily: "inherit", fontSize: 9, letterSpacing: 2, padding: "6px 14px", cursor: "pointer" }}>+ DÍA</button>}
-              </div>
-            ))}
-            <button onClick={addWeek} style={{ width: "100%", background: "none", border: "2px dashed #2a2a2a", borderRadius: 10, color: "#555", fontFamily: "inherit", fontSize: 10, letterSpacing: 2, padding: "14px", cursor: "pointer", marginBottom: 20 }}>+ AÑADIR SEMANA</button>
+                  {w.days.map((d, di) => (
+                    <div key={di} style={{ padding: "12px 14px", borderBottom: `1px solid ${LINE}` }}>
+                      {ed ? (
+                        <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+                          <input value={d.day} onChange={e => updateDay(wi, di, "day", e.target.value)} style={{ ...editInp, width: 110 }} />
+                          <input value={d.name} onChange={e => updateDay(wi, di, "name", e.target.value)} style={{ ...editInp, flex: 1, fontWeight: 700 }} />
+                          <button onClick={() => removeDay(wi, di)} style={{ ...smallBtn, color: "#c62828", padding: "8px 10px" }}>✕</button>
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 6 }}>{d.day} — {d.name}</div>
+                      )}
+                      {d.exercises.map((ex, ei) => (
+                        <div key={ei} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 0" }}>
+                          {ed ? (
+                            <>
+                              <input value={ex.name} onChange={e => updateEx(wi, di, ei, "name", e.target.value)} style={{ ...editInp, flex: 1, minWidth: 0 }} />
+                              <input value={ex.sets} inputMode="numeric" onChange={e => updateEx(wi, di, ei, "sets", e.target.value)} style={{ ...editInp, width: 44, textAlign: "center", padding: "8px 4px" }} />
+                              <span style={{ color: SUB }}>×</span>
+                              <input value={ex.reps} onChange={e => updateEx(wi, di, ei, "reps", e.target.value)} style={{ ...editInp, width: 56, textAlign: "center", padding: "8px 4px" }} />
+                              <button onClick={() => removeExercise(wi, di, ei)} style={{ background: "none", border: "none", color: "#c62828", fontSize: 18, padding: "0 4px", cursor: "pointer" }}>✕</button>
+                            </>
+                          ) : (
+                            <>
+                              <span style={{ flex: 1, fontSize: 15, color: TXT }}>{ex.name}</span>
+                              <span style={{ fontSize: 15, color: C, fontWeight: 800, whiteSpace: "nowrap" }}>{ex.sets}×{ex.reps}</span>
+                            </>
+                          )}
+                        </div>
+                      ))}
+                      {ed && <button onClick={() => addExercise(wi, di)} style={{ ...smallBtn, marginTop: 8, borderStyle: "dashed" }}>+ Ejercicio</button>}
+                    </div>
+                  ))}
+                  {ed && <div style={{ padding: 12 }}><button onClick={() => addDay(wi)} style={{ ...smallBtn, borderStyle: "dashed" }}>+ Día</button></div>}
+                </div>
+              );
+            })}
+            <button onClick={addWeek} style={{ ...smallBtn, width: "100%", padding: 16, fontSize: 16, borderStyle: "dashed", color: C, borderColor: C }}>+ Añadir semana</button>
           </div>
         )}
 
+        {/* HISTORIAL */}
         {tab === "log" && (
-          <div style={{ marginTop: 16 }}>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 20 }}>
-              {[["ENTRENOS", getLog().length], ["SEMANAS", program.length], ["SERIES HOY", completedSets]].map(([l, v]) => (
-                <div key={l} style={{ background: "#141414", borderRadius: 10, padding: "14px 10px", border: "1px solid #1e1e1e", textAlign: "center" }}>
-                  <div style={{ fontSize: 22, fontWeight: 900, color: "#c8ff00" }}>{v}</div>
-                  <div style={{ fontSize: 8, color: "#444", letterSpacing: 2, marginTop: 4 }}>{l}</div>
+          <div style={{ marginTop: 18 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 20 }}>
+              {[["Total entrenos", log.length, TXT], ...Object.entries(META).map(([id, m]) => [m.icon + " " + m.short, log.filter(l => l.pid === id).length, m.color])].map(([l, v, col]) => (
+                <div key={l} style={{ background: CARD, borderRadius: 14, padding: "14px 8px", border: `1.5px solid ${LINE}`, textAlign: "center" }}>
+                  <div style={{ fontSize: 30, fontWeight: 800, color: col }}>{v}</div>
+                  <div style={{ fontSize: 13, color: SUB, fontWeight: 600, marginTop: 2 }}>{l}</div>
                 </div>
               ))}
             </div>
-            {getLog().length === 0 ? (
-              <div style={{ textAlign: "center", color: "#444", marginTop: 50, fontSize: 13 }}>Sin entrenos registrados aún.<br />¡Marca tu primer día!</div>
-            ) : getLog().map(({ key, weekLabel, dayName, note }) => (
-              <div key={key} style={{ marginBottom: 10, background: "#141414", borderRadius: 10, padding: "13px 14px", border: "1px solid #c8ff0022" }}>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ fontSize: 11, fontWeight: 700 }}>{dayName}</span>
-                  <span style={{ fontSize: 10, color: "#c8ff00" }}>{weekLabel}</span>
+            {log.length === 0 ? (
+              <div style={{ textAlign: "center", color: SUB, marginTop: 50, fontSize: 17, lineHeight: 1.5 }}>Aún no hay entrenos registrados.<br />Pulsa "Marcar hecho" al terminar.</div>
+            ) : log.map(({ key, pid, weekLabel, dayName, note, at }) => (
+              <div key={key} style={{ marginBottom: 10, background: CARD, borderRadius: 14, padding: "14px", border: `1.5px solid ${LINE}`, borderLeft: `5px solid ${META[pid].color}` }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                  <span style={{ fontSize: 17, fontWeight: 800 }}>{dayName}</span>
+                  {at > 0 && <span style={{ fontSize: 14, color: SUB, fontWeight: 600 }}>{fmtDate(at)}</span>}
                 </div>
-                {note && <div style={{ fontSize: 11, color: "#555", marginTop: 6, fontStyle: "italic" }}>"{note}"</div>}
+                <div style={{ fontSize: 14, color: META[pid].color, fontWeight: 700, marginTop: 4 }}>{META[pid].long} · {weekLabel}</div>
+                {note && <div style={{ fontSize: 15, color: SUB, marginTop: 8, fontStyle: "italic" }}>"{note}"</div>}
               </div>
             ))}
           </div>
         )}
       </div>
 
+      {/* PANEL DE VÍDEOS */}
       {videoModal && (
-        <div style={{ position: "fixed", inset: 0, background: "#000000cc", zIndex: 200, display: "flex", alignItems: "flex-end", justifyContent: "center" }}
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 200, display: "flex", alignItems: "flex-end", justifyContent: "center" }}
           onClick={e => { if (e.target === e.currentTarget) setVideoModal(null); }}>
-          <div style={{ width: "100%", maxWidth: 480, background: "#141414", borderRadius: "16px 16px 0 0", padding: "20px 18px 40px", border: "1px solid #222" }}>
-            <div style={{ fontSize: 9, color: "#555", letterSpacing: 3, marginBottom: 4 }}>VÍDEO DE REFERENCIA</div>
-            <div style={{ fontSize: 14, fontWeight: 900, marginBottom: 16, color: "#f0ede6" }}>{videoModal.name}</div>
-            {(() => {
-              const ytId = getYouTubeId(videoInput);
-              return ytId ? (
-                <div style={{ marginBottom: 14, borderRadius: 10, overflow: "hidden" }}>
-                  <iframe src={`https://www.youtube.com/embed/${ytId}`} style={{ width: "100%", height: 200, border: "none", display: "block" }} allowFullScreen title="exercise video" />
-                </div>
-              ) : videoInput ? (
-                <a href={videoInput} target="_blank" rel="noreferrer" style={{ display: "block", marginBottom: 14, padding: "12px", background: "#1e1e1e", borderRadius: 8, color: "#c8ff00", fontSize: 11, wordBreak: "break-all", textDecoration: "none" }}>🔗 Abrir enlace →</a>
-              ) : null;
-            })()}
-            <a href={ytSearch(videoModal.name)} target="_blank" rel="noreferrer" style={{ display: "block", marginBottom: 12, padding: "13px", background: "#c8ff0015", border: "1px solid #c8ff0055", borderRadius: 8, color: "#c8ff00", fontSize: 12, fontWeight: 900, letterSpacing: 1, textDecoration: "none", textAlign: "center" }}>🔎 VER TUTORIALES EN YOUTUBE</a>
-            <div style={{ fontSize: 10, color: "#555", marginBottom: 8, lineHeight: 1.4 }}>¿Te gusta uno? Copia su enlace y pégalo aquí. Quedará guardado para este ejercicio en todas las semanas.</div>
-            <input value={videoInput} onChange={e => setVideoInput(e.target.value)} placeholder="Pega un enlace de YouTube u otro vídeo..."
-              style={{ width: "100%", background: "#0f0f0f", border: "1px solid #333", borderRadius: 8, color: "#f0ede6", fontFamily: "inherit", fontSize: 12, padding: "12px", outline: "none", boxSizing: "border-box", marginBottom: 12 }} />
-            <div style={{ display: "flex", gap: 8 }}>
-              <button onClick={saveVideo} style={{ flex: 1, background: "#c8ff00", border: "none", borderRadius: 8, color: "#0f0f0f", fontFamily: "inherit", fontSize: 11, fontWeight: 900, letterSpacing: 1, padding: "12px", cursor: "pointer" }}>GUARDAR</button>
-              {videos[videoModal.key] && <button onClick={deleteVideo} style={{ background: "transparent", border: "1px solid #442222", borderRadius: 8, color: "#aa4444", fontFamily: "inherit", fontSize: 11, padding: "12px 16px", cursor: "pointer" }}>🗑</button>}
-              <button onClick={() => setVideoModal(null)} style={{ background: "transparent", border: "1px solid #222", borderRadius: 8, color: "#555", fontFamily: "inherit", fontSize: 11, padding: "12px 16px", cursor: "pointer" }}>✕</button>
+          <div style={{ width: "100%", maxWidth: 560, maxHeight: "88vh", overflowY: "auto", background: CARD, borderRadius: "20px 20px 0 0", padding: "20px 18px", paddingBottom: "max(env(safe-area-inset-bottom), 24px)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
+              <div>
+                <div style={{ fontSize: 13, color: SUB, fontWeight: 700 }}>VÍDEOS DEL EJERCICIO</div>
+                <div style={{ fontSize: 20, fontWeight: 800, marginTop: 2 }}>{videoModal.name}</div>
+              </div>
+              <button onClick={() => setVideoModal(null)} style={{ ...smallBtn, fontSize: 18, padding: "6px 12px" }}>✕</button>
             </div>
+
+            <label style={{ display: "block", marginTop: 16, padding: "16px", background: saving ? LINE : C, borderRadius: 12, color: "#fff", fontSize: 17, fontWeight: 800, textAlign: "center", cursor: "pointer" }}>
+              {saving ? "⏳ Guardando vídeo..." : "📱 Subir vídeo de mi galería"}
+              <input type="file" accept="video/*" multiple disabled={saving} onChange={uploadClips} style={{ display: "none" }} />
+            </label>
+            <div style={{ marginTop: 6, fontSize: 13, color: SUB, lineHeight: 1.4 }}>Se guarda dentro de la app, en este móvil. Aparecerá en este ejercicio en todas las semanas y programas.</div>
+
+            <div style={{ marginTop: 20, fontSize: 13, color: SUB, fontWeight: 700 }}>MIS VÍDEOS ({clips.length})</div>
+            {clips.length === 0 && <div style={{ marginTop: 8, fontSize: 15, color: SUB }}>Aún no has subido ninguno.</div>}
+            {clips.map((c, i) => (
+              <div key={c.id} style={{ marginTop: 10, border: `1.5px solid ${LINE}`, borderRadius: 12, overflow: "hidden" }}>
+                <video src={c.url + "#t=0.1"} controls playsInline preload="metadata" style={{ width: "100%", maxHeight: 420, display: "block", background: "#000" }} />
+                <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px" }}>
+                  <span style={{ flex: 1, fontSize: 15, fontWeight: 700 }}>Vídeo {i + 1} <span style={{ color: SUB, fontWeight: 500, fontSize: 13 }}>· {fmtDate(c.created)} · {fmtSize(c.size || 0)}</span></span>
+                  <button onClick={() => deleteClip(c.id)} style={{ ...smallBtn, color: "#c62828", padding: "6px 10px" }}>🗑</button>
+                </div>
+              </div>
+            ))}
+
+            <a href={ytSearch(videoModal.name)} target="_blank" rel="noreferrer" style={{ display: "block", marginTop: 22, padding: "13px", background: SOFT, border: `2px solid ${C}`, borderRadius: 12, color: C, fontSize: 15, fontWeight: 800, textDecoration: "none", textAlign: "center" }}>🔎 Buscar tutoriales en YouTube</a>
+
+            <button onClick={() => setShowLinks(!showLinks)} style={{ ...smallBtn, width: "100%", marginTop: 10, padding: 12 }}>{showLinks ? "▲" : "▼"} Enlaces de internet guardados ({modalVideos.length})</button>
+            {showLinks && (
+              <>
+                {modalVideos.map((url, i) => {
+                  const id = ytId(url);
+                  return (
+                    <div key={i} style={{ marginTop: 10, border: `1.5px solid ${LINE}`, borderRadius: 12, overflow: "hidden" }}>
+                      {id && <iframe src={`https://www.youtube.com/embed/${id}`} style={{ width: "100%", aspectRatio: "16 / 9", border: "none", display: "block" }} allowFullScreen title={"video" + i} />}
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px" }}>
+                        <a href={url} target="_blank" rel="noreferrer" style={{ flex: 1, color: C, fontSize: 15, fontWeight: 700, textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{id ? "▶ Enlace " + (i + 1) + " · abrir en YouTube" : "🔗 " + url}</a>
+                        <button onClick={() => { if (confirm("¿Borrar este enlace?")) removeVideo(i); }} style={{ ...smallBtn, color: "#c62828", padding: "6px 10px" }}>🗑</button>
+                      </div>
+                    </div>
+                  );
+                })}
+                <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                  <input value={videoInput} onChange={e => setVideoInput(e.target.value)} placeholder="Pega un enlace https://..." style={{ flex: 1, minWidth: 0, background: "#fbfaf7", border: `1.5px solid ${LINE}`, borderRadius: 10, color: TXT, fontSize: 16, padding: "12px" }} />
+                  <button onClick={pasteVideo} style={{ ...smallBtn, padding: "8px 12px" }}>📋</button>
+                  <button onClick={addVideo} style={{ ...smallBtn, padding: "8px 12px", color: C, borderColor: C }}>Añadir</button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
 
-      {toast && (
-        <div style={{ position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)", background: "#c8ff00", color: "#0f0f0f", borderRadius: 100, padding: "10px 22px", fontSize: 11, fontWeight: 900, letterSpacing: 1, whiteSpace: "nowrap", zIndex: 100 }}>{toast}</div>
-      )}
-
-      <style>{`* { box-sizing: border-box; } input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; } ::-webkit-scrollbar { display: none; }`}</style>
+      {toast && <div style={{ position: "fixed", bottom: "max(env(safe-area-inset-bottom), 24px)", left: "50%", transform: "translateX(-50%)", background: TXT, color: "#fff", borderRadius: 100, padding: "12px 22px", fontSize: 15, fontWeight: 700, whiteSpace: "nowrap", zIndex: 300 }}>{toast}</div>}
     </div>
   );
 }
@@ -560,9 +810,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(<GymPlanner />);
   </script>
   <script>
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js').catch(() => {});
-      });
+      window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
     }
   </script>
 </body>
